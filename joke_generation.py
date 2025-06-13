@@ -398,93 +398,130 @@ Improved Joke: [Your refined joke here]"""
         # If no specific marker found, return the whole response
         return response.strip()
     
-    def ensure_joke_diversity(self, similarity_threshold: float = 0.7) -> None:
-        """
-        Phase 2.5: Enhance joke diversity by detecting and replacing similar jokes.
-        
-        Args:
-            similarity_threshold: Threshold for considering jokes too similar
-        """
-        if not self.joke_candidates:
-            return
-            
-        logger.info("Analyzing joke diversity and generating additional jokes if needed")
-        
-        # Group similar jokes
-        similar_groups = self._find_similar_joke_groups(similarity_threshold)
-        
-        if len(similar_groups) > 1:
-            logger.info(f"Found {len(similar_groups)} groups of similar jokes")
-            
-            # Get examples of existing jokes for diversity prompt
-            existing_jokes = [candidate.refined_joke or candidate.full_joke 
-                            for candidate in self.joke_candidates[:5]]
-            
-            diversity_prompt = f"""I have generated several jokes about "{self.topic_analysis.original_topic}" but they seem too similar. Create 3 jokes that are completely different in style and approach from these existing ones:
+    def generate_primitive_observations(self, topic: str, context_analysis: str, num_observations: int = 8) -> list:
+        """Generate primitive observations that will be combined into plans."""
+        prompt = f"""
+Generate {num_observations} distinct, primitive observations about \"{topic}\" that could be building blocks for jokes.
 
-Existing jokes:
-{chr(10).join(f"- {joke}" for joke in existing_jokes)}
+Each observation should be:
+- A single, focused insight or characteristic
+- Combinable with other observations
+- Not a complete joke concept, but a building block
 
-Generate jokes that use different:
-- Humor mechanisms (if existing ones use puns, try observational humor)
-- Perspectives (if existing ones are first-person, try third-person or objective)
-- Formats (if existing ones are one-liners, try short stories or dialogues)
+Context: {context_analysis}
 
-New Joke 1: [Completely different approach]
-New Joke 2: [Completely different approach]  
-New Joke 3: [Completely different approach]"""
+Format as simple statements:
+1. [Single primitive observation]
+2. [Single primitive observation]
+3. [Single primitive observation]
+4. [Single primitive observation]
+5. [Single primitive observation]
+6. [Single primitive observation]
+7. [Single primitive observation]
+8. [Single primitive observation]
+"""
 
-            try:
-                response = self.call_llm(diversity_prompt)
-                new_jokes = self._parse_numbered_list(response)
-                
-                # Add new diverse jokes as candidates
-                for i, joke in enumerate(new_jokes):
-                    if joke:
-                        candidate = JokeCandidate(
-                            angle=f"Diversity enhancement #{i+1}",
-                            outline="Generated for diversity",
-                            full_joke=joke,
-                            refined_joke=joke
-                        )
-                        self.joke_candidates.append(candidate)
-                
-                logger.info(f"Added {len(new_jokes)} diverse jokes")
-                
-            except Exception as e:
-                logger.error(f"Failed to generate diverse jokes: {str(e)}")
-    
-    def _find_similar_joke_groups(self, threshold: float) -> list:
-        """Group jokes by similarity using simple keyword overlap."""
-        groups = []
-        used_indices = set()
-        
-        for i, candidate_i in enumerate(self.joke_candidates):
-            if i in used_indices:
+        response = self.call_llm(prompt)
+        observations = self._parse_numbered_list(response)
+        logger.info(f"Generated {len(observations)} primitive observations")
+        return observations
+
+    def generate_combinatorial_plans(self, observations: list, max_plans: int = 15) -> list:
+        """Generate joke plans by combining 2-4 primitive observations."""
+        import itertools
+        import random
+
+        plans = []
+        # Ensure reproducibility can be turned off/on by user; default pseudo-random
+        random.seed()  # do not set a fixed seed
+
+        # Split the plan budget roughly equally among combo sizes
+        budget_per_size = max(1, max_plans // 3)
+
+        for combo_size in [2, 3, 4]:
+            combinations = list(itertools.combinations(observations, combo_size))
+            if not combinations:
                 continue
-                
-            joke_i = candidate_i.refined_joke or candidate_i.full_joke
-            words_i = set(joke_i.lower().split())
-            current_group = [i]
-            used_indices.add(i)
-            
-            for j, candidate_j in enumerate(self.joke_candidates[i+1:], i+1):
-                if j in used_indices:
-                    continue
-                    
-                joke_j = candidate_j.refined_joke or candidate_j.full_joke
-                words_j = set(joke_j.lower().split())
-                
-                # Calculate similarity
-                overlap = len(words_i & words_j) / len(words_i | words_j) if words_i | words_j else 0
-                
-                if overlap > threshold:
-                    current_group.append(j)
-                    used_indices.add(j)
-            
-            groups.append(current_group)
-        
-        return groups
+            sampled_combos = random.sample(combinations, min(len(combinations), budget_per_size))
+            for combo in sampled_combos:
+                plan_prompt = f"""
+Create a coherent joke plan by combining these observations:
+{chr(10).join(f"- {obs}" for obs in combo)}
+
+Your task:
+1. Find a unifying theme or connection between these observations
+2. Describe how they could work together in a joke structure
+3. Specify the joke format (one-liner, setup-punchline, dialogue, etc.)
+
+Plan Description: [How these observations combine into a joke strategy]
+Joke Format: [Specific format this plan will use]
+"""
+                response = self.call_llm(plan_prompt)
+                plans.append({
+                    'observations': combo,
+                    'plan_description': response.strip(),
+                    'combo_size': combo_size
+                })
+                if len(plans) >= max_plans:
+                    break
+            if len(plans) >= max_plans:
+                break
+
+        logger.info(f"Created {len(plans)} combinatorial plans")
+        return plans[:max_plans]
+
+    def generate_full_jokes(self, topic: str, plans: list) -> list:
+        """Generate jokes from combinatorial plans."""
+        joke_results = []
+        for plan in plans:
+            joke_prompt = f"""
+Topic: \"{topic}\"
+Plan: {plan['plan_description']}
+Source Observations: {', '.join(plan['observations'])}
+
+Execute this plan to create a complete joke. Follow the plan's structure and format exactly.
+
+Joke: [Your complete joke here]
+"""
+            response = self.call_llm(joke_prompt)
+            joke_results.append({
+                'joke': response.strip(),
+                'plan': plan,
+                'observations_used': plan['observations']
+            })
+        logger.info(f"Generated {len(joke_results)} jokes from combinatorial plans")
+        return joke_results
+
+    def refine_joke(self, joke: str, topic: str, plan_description: str) -> str:
+        """Refine a single joke using critique-and-revise loop."""
+        critique_prompt = f"""Analyze this joke for improvement opportunities given the plan context.
+Topic: \"{topic}\"
+Plan: {plan_description}
+Joke: \"{joke}\"
+
+Provide specific feedback on:
+1. Setup clarity
+2. Punchline impact
+3. Timing and brevity
+4. Relevance to the topic \"{topic}\"
+
+Critique: [detailed feedback]
+Improvement Suggestions: [actionable changes]
+"""
+        critique_response = self.call_llm(critique_prompt)
+        critique, suggestions = self._parse_critique_response(critique_response)
+
+        refinement_prompt = f"""Original Joke: \"{joke}\"
+Critique: {critique}
+Improvement Suggestions: {suggestions}
+
+Write an improved version of the joke that addresses every suggestion while preserving the core concept.
+
+Improved Joke: [your refined joke]
+"""
+        refined_response = self.call_llm(refinement_prompt)
+        refined_joke = self._extract_refined_joke(refined_response)
+        return refined_joke.strip()
 
 # Extend the main class with generation capabilities
 class JokePlanSearchWithGeneration(JokePlanSearch, JokeGenerationMixin):

@@ -21,6 +21,9 @@ tqdm>=4.65.0
 matplotlib>=3.6.0
 seaborn>=0.12.0
 
+# Statistical analysis
+scipy>=1.11.0
+
 # Jupyter notebook support (for Colab)
 jupyter>=1.0.0
 ipywidgets>=8.0.0

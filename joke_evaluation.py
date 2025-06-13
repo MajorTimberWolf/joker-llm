@@ -9,6 +9,9 @@ import logging
 import random
 import statistics
 from typing import Dict, List, Any
+import numpy as np
+from scipy import stats
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -383,25 +386,137 @@ REASONING: [brief explanation]"""
                 }
         
         # Check for position bias in comparative evaluations
-        position_bias_info = self._analyze_position_bias()
+        position_bias_info = self._analyze_position_bias(self.joke_candidates, self.scores_by_round)
         bias_analysis["position_bias"] = position_bias_info
         
         logger.info("Bias detection analysis completed")
         return bias_analysis
     
-    def _analyze_position_bias(self) -> Dict[str, Any]:
-        """Analyze if there's bias toward jokes presented first in comparisons."""
-        # This is a simplified analysis - in a full implementation,
-        # you'd want to track the actual positions of jokes in comparison prompts
-        
-        total_wins = sum(candidate.comparative_wins for candidate in self.joke_candidates)
-        total_losses = sum(candidate.comparative_losses for candidate in self.joke_candidates)
-        
+    def _analyze_position_bias(self, jokes, scores_by_round):
+        """Calculate actual positional bias in LLM judgments."""
+        bias_analysis = {
+            'position_correlation': {},
+            'first_position_advantage': 0,
+            'last_position_advantage': 0,
+            'statistical_significance': {}
+        }
+
+        for round_name, round_data in scores_by_round.items():
+            if not round_data:
+                continue
+            # Ensure aligned ordering
+            positions = list(range(len(round_data)))
+            scores = [item['overall_score'] for item in round_data]
+            if len(set(scores)) < 2:  # correlation undefined for constant lists
+                correlation, p_value = 0, 1
+            else:
+                correlation, p_value = stats.pearsonr(positions, scores)
+            bias_analysis['position_correlation'][round_name] = {
+                'correlation': correlation,
+                'p_value': p_value,
+                'significant': p_value < 0.05
+            }
+
+            # First vs middle vs last comparisons
+            first_score = round_data[0]['overall_score']
+            last_score = round_data[-1]['overall_score']
+            middle_scores = [d['overall_score'] for d in round_data[1:-1]] if len(round_data) > 2 else []
+
+            if middle_scores:
+                bias_analysis['first_position_advantage'] += first_score - np.mean(middle_scores)
+                bias_analysis['last_position_advantage'] += last_score - np.mean(middle_scores)
+
+        # Average over rounds
+        num_rounds = max(1, len(scores_by_round))
+        bias_analysis['first_position_advantage'] /= num_rounds
+        bias_analysis['last_position_advantage'] /= num_rounds
+        return bias_analysis
+
+    def _apply_bias_correction(self, scores, bias_analysis):
+        """Apply corrections based on detected positional bias."""
+        corrected_scores = []
+        first_adv = bias_analysis.get('first_position_advantage', 0)
+        last_adv = bias_analysis.get('last_position_advantage', 0)
+
+        for i, score_data in enumerate(scores):
+            correction = 0
+            if i == 0 and first_adv > 0.5:  # threshold for applying correction
+                correction -= first_adv * 0.5
+            if i == len(scores) - 1 and last_adv > 0.5:
+                correction -= last_adv * 0.5
+            corrected_score = max(1, min(10, score_data['overall_score'] + correction))
+            corrected_scores.append({
+                **score_data,
+                'corrected_score': corrected_score,
+                'bias_correction': correction
+            })
+        return corrected_scores
+
+    def _calculate_consensus_scores(self, jokes, scores_by_round):
+        """Aggregate scores across rounds into consensus list."""
+        score_accumulator = defaultdict(list)
+        for round_data in scores_by_round.values():
+            for idx, data in enumerate(round_data):
+                score_accumulator[idx].append(data['overall_score'])
+        consensus = []
+        for idx in range(len(jokes)):
+            if score_accumulator[idx]:  # Check if list is not empty
+                avg_score = sum(score_accumulator[idx]) / len(score_accumulator[idx])
+            else:
+                avg_score = 5.0  # Default fallback score
+            consensus.append({
+                'overall_score': avg_score
+            })
+        return consensus
+
+    def _evaluate_round(self, ordered_jokes: list, round_name: str):
+        """Evaluate a list of jokes and return structured scores."""
+        prompt = f"""
+Evaluate the following jokes about the same topic. Provide a holistic funniness score (1-10) for each and a one-line justification.
+
+{chr(10).join(f"{i+1}. {j}" for i, j in enumerate(ordered_jokes))}
+
+Return format:
+JOKE [number]: [score] - [justification]
+"""
+        response = self.call_llm_judge(prompt)
+        parsed = self._parse_simple_scores_with_reasons(response)
+        return parsed
+
+    def _parse_simple_scores_with_reasons(self, response: str):
+        lines = response.split('\n')
+        results = []
+        for line in lines:
+            if line.startswith('JOKE') and ':' in line:
+                try:
+                    parts = line.split(':', 1)[1].strip()
+                    score_part, *reason_parts = parts.split('-', 1)
+                    score = float(''.join(c for c in score_part if c.isdigit() or c == '.'))
+                    reason = reason_parts[0].strip() if reason_parts else ''
+                    results.append({'overall_score': score, 'reason': reason})
+                except ValueError:
+                    continue
+        return results
+
+    def evaluate_jokes(self, jokes: list, topic: str):
+        """Evaluate jokes with proper bias detection and correction."""
+        print("🔍 Running multi-round evaluation with bias analysis...")
+        all_rounds = {}
+        for round_num in range(3):
+            shuffled = jokes.copy()
+            random.shuffle(shuffled)
+            round_name = f"round_{round_num+1}"
+            all_rounds[round_name] = self._evaluate_round(shuffled, round_name)
+        # Store for optional external analysis
+        self.scores_by_round = all_rounds
+        bias_analysis = self._analyze_position_bias(jokes, all_rounds)
+        consensus_scores = self._calculate_consensus_scores(jokes, all_rounds)
+        corrected_scores = self._apply_bias_correction(consensus_scores, bias_analysis)
         return {
-            "total_comparisons": (total_wins + total_losses) // 2,
-            "wins_distribution": [candidate.comparative_wins for candidate in self.joke_candidates],
-            "position_bias_detected": False,  # Placeholder - would need more sophisticated analysis
-            "confidence": 0.8
+            'scores': corrected_scores,
+            'bias_analysis': bias_analysis,
+            'round_details': all_rounds,
+            'methodology': 'multi_round_with_bias_correction'
         }
 
 # Extend the main class with evaluation capabilities

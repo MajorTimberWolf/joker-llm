@@ -199,6 +199,26 @@ class JokePlanSearch:
         if "analyze this topic for joke-writing potential" in prompt_lower:
             return self._generate_topic_analysis_mock(topic)
         
+        # NEW: Primitive observations mock
+        elif "generate" in prompt_lower and "primitive observations" in prompt_lower:
+            return self._generate_primitive_observations_mock(topic)
+        
+        # NEW: Combinatorial plans mock
+        elif "create a coherent joke plan by combining these observations" in prompt_lower:
+            return self._generate_combinatorial_plan_mock(topic, prompt)
+        
+        # NEW: Joke execution from plan mock
+        elif "execute this plan to create a complete joke" in prompt_lower:
+            return self._generate_plan_execution_mock(topic, prompt)
+        
+        # NEW: Individual joke refinement mock
+        elif "analyze this joke for improvement opportunities given the plan context" in prompt_lower:
+            return self._generate_plan_critique_mock(topic, prompt)
+        
+        # NEW: Evaluation scoring mock
+        elif "evaluate the following jokes about the same topic" in prompt_lower and "holistic funniness score" in prompt_lower:
+            return self._generate_evaluation_round_mock(prompt)
+        
         # Basic angles mock
         elif "generate 5 distinct joke angles" in prompt_lower:
             return self._generate_basic_angles_mock(topic)
@@ -496,6 +516,166 @@ New Joke 3: My car has two speeds: parked and slightly less parked."""
 New Joke 2: What's the difference between {topic} and a magic trick? Magic tricks eventually end.
 New Joke 3: I told my friend a joke about {topic}. They're still trying to figure out the punchline."""
     
+    def _generate_primitive_observations_mock(self, topic: str) -> str:
+        """Generate mock primitive observations for the topic."""
+        topic_lower = topic.lower()
+        
+        if "traffic" in topic_lower and "bangalore" in topic_lower:
+            observations = [
+                "Traffic moves slower than walking speed during peak hours",
+                "Auto-rickshaw drivers have supernatural route knowledge", 
+                "Tech workers commute longer than their ancestors traveled in lifetime",
+                "Every signal has its own unwritten rules",
+                "Honking is considered a form of communication",
+                "Lane markings are treated as suggestions rather than rules",
+                "Rush hour starts at 7 AM and ends at midnight",
+                "GPS apps give up and suggest alternative cities"
+            ]
+        elif "traffic" in topic_lower:
+            observations = [
+                "Red lights last exactly long enough to question life choices",
+                "Every driver believes they're the only one in a hurry",
+                "Parking spots exist in a parallel dimension",
+                "GPS recalculates faster than you can change lanes", 
+                "Construction zones reproduce when nobody's watching",
+                "Turn signals are apparently an optional feature",
+                "Traffic moves inversely to how late you're running",
+                "Every shortcut leads to more traffic"
+            ]
+        elif "artificial intelligence" in topic_lower or "ai" in topic_lower:
+            observations = [
+                "AI can recognize cats better than humans but can't open cat food",
+                "Machine learning requires more examples than human toddlers",
+                "AI assistants understand everything except what you actually need",
+                "Neural networks have more layers than wedding cakes",
+                "AI can beat humans at chess but loses to CAPTCHAs",
+                "Deep learning happens in servers that run very shallow thoughts",
+                "AI training data includes the entire internet and still gets confused",
+                "Algorithms optimize everything except their own comprehensibility"
+            ]
+        else:
+            observations = [
+                f"{topic} is more complex than it appears on the surface",
+                f"Everyone has strong opinions about {topic}",
+                f"{topic} never works exactly as advertised",
+                f"The rules of {topic} change when nobody's looking",
+                f"{topic} brings out people's true personalities",
+                f"Modern {topic} solutions create vintage problems",
+                f"{topic} is simultaneously overrated and underrated",
+                f"The best {topic} advice comes from unexpected sources"
+            ]
+        
+        return "\n".join(f"{i+1}. {obs}" for i, obs in enumerate(observations))
+    
+    def _generate_combinatorial_plan_mock(self, topic: str, prompt: str) -> str:
+        """Generate a mock combinatorial plan based on the observations in the prompt."""
+        # Extract observations from the prompt (lines starting with -)
+        observations = []
+        for line in prompt.split('\n'):
+            if line.strip().startswith('- '):
+                observations.append(line.strip()[2:])
+        
+        if len(observations) >= 2:
+            plan = f"Combine the concepts of '{observations[0][:30]}...' and '{observations[1][:30]}...' to create a contrast between expectations and reality."
+            joke_format = random.choice([
+                "Setup-punchline structure with misdirection",
+                "Observational one-liner with twist ending", 
+                "Short dialogue revealing the absurdity",
+                "Comparative statement highlighting the irony"
+            ])
+        else:
+            plan = f"Use the core observation about {topic} to build a joke around relatable frustration"
+            joke_format = "Setup-punchline with observational humor"
+        
+        return f"Plan Description: {plan}\nJoke Format: {joke_format}"
+    
+    def _generate_plan_execution_mock(self, topic: str, prompt: str) -> str:
+        """Generate a mock joke based on the plan in the prompt."""
+        topic_lower = topic.lower()
+        
+        if "traffic" in topic_lower and "bangalore" in topic_lower:
+            jokes = [
+                "I told my GPS to avoid traffic in Bangalore. It suggested I move to a different city.",
+                "Bangalore traffic is so slow, I've seen seasons change while waiting at one signal.",
+                "In Bangalore, 'rush hour' means the one hour when traffic actually moves.",
+                "My commute in Bangalore is so long, I've started claiming it as a different time zone.",
+                "Bangalore traffic jams are so legendary, they have their own zip codes."
+            ]
+        elif "traffic" in topic_lower:
+            jokes = [
+                "Traffic is so bad, I've started measuring distance in hours instead of miles.",
+                "My car's odometer broke from going 5 mph for too long.",
+                "I've been stuck in traffic so long, my parking meter expired three cities ago.",
+                "GPS apps should have a 'time travel' option for rush hour commutes.",
+                "Traffic moves so slowly, archaeologists could study it as a stationary civilization."
+            ]
+        elif "ai" in topic_lower:
+            jokes = [
+                "AI can recognize my face but still asks if I'm a robot.",
+                "My AI assistant is so smart, it schedules meetings for me to discuss why it's so smart.",
+                "AI learned everything from the internet and somehow still has better judgment than humans.",
+                "Deep learning is when AI realizes humans don't know what they're doing either.",
+                "AI can beat grandmasters at chess but loses to my grandmother at setting reminders."
+            ]
+        else:
+            jokes = [
+                f"The thing about {topic} is that it's exactly like life: confusing and unpredictable.",
+                f"I tried to understand {topic} but it understood me first. Now I'm self-conscious.",
+                f"{topic} is proof that humans can make anything more complicated than necessary.",
+                f"The experts say {topic} will change everything. Everything except the experts.",
+                f"{topic} is like a puzzle where half the pieces are missing and the other half are from different boxes."
+            ]
+        
+        return f"Joke: {random.choice(jokes)}"
+    
+    def _generate_plan_critique_mock(self, topic: str, prompt: str) -> str:
+        """Generate mock critique for joke refinement."""
+        critiques = [
+            "The setup is clear but the punchline could be more surprising",
+            "Good concept but the timing could be tightened for better impact",
+            "The joke connects well to the topic but could use more specificity",
+            "Strong observational humor that could benefit from sharper wordplay",
+            "The premise works but the conclusion needs more unexpected twist"
+        ]
+        
+        suggestions = [
+            "Shorten the setup and emphasize the contrast more directly",
+            "Add specific details that make the scenario more relatable",
+            "Use more precise language to enhance the comedic timing",
+            "Strengthen the connection between setup and punchline",
+            "Consider adding a callback or self-reference for meta-humor"
+        ]
+        
+        return f"""Critique: {random.choice(critiques)}
+Improvement Suggestions: {random.choice(suggestions)}"""
+    
+    def _generate_evaluation_round_mock(self, prompt: str) -> str:
+        """Generate mock evaluation scores for multiple jokes."""
+        # Count how many jokes are in the prompt
+        joke_count = 0
+        lines = prompt.split('\n')
+        for line in lines:
+            if line.strip() and any(line.strip().startswith(f"{i}.") for i in range(1, 21)):
+                joke_count += 1
+        if joke_count == 0:
+            joke_count = 15  # Default fallback based on our pipeline
+        
+        responses = []
+        for i in range(1, joke_count + 1):
+            score = random.randint(4, 9)
+            reasons = [
+                "Good timing and relatable setup",
+                "Clever wordplay with solid execution", 
+                "Original concept with clear punchline",
+                "Strong observational humor",
+                "Creative approach but could be tighter",
+                "Effective use of misdirection",
+                "Well-structured with good payoff"
+            ]
+            responses.append(f"JOKE {i}: {score} - {random.choice(reasons)}")
+        
+        return "\n".join(responses)
+
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get performance and usage metrics for the session."""
         return {
