@@ -6,7 +6,7 @@ Optimized for Groq's 30 requests/minute rate limit
 
 import os
 import time
-from dotenv import load_dotenv
+from dotenv import load_dotenv #type: ignore
 from joke_plan_search_complete import JokePlanSearchComplete, create_groq_client, BiasConfig
 
 # Load environment variables
