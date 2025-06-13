@@ -1,20 +1,22 @@
-# JokePlanSearch: Comprehensive LLM-Based Joke Generation & Evaluation
+# JokePlanSearch: LLM-Based Joke Generation with PlanSearch
 
-A sophisticated system for computational humor generation using the PlanSearch methodology, featuring multi-dimensional evaluation with bias mitigation techniques.
+A sophisticated system for computational humor generation using the PlanSearch methodology, featuring multi-dimensional evaluation with bias mitigation techniques. This project implements a structured approach to creative text generation, breaking down the process into planning, generation, and evaluation stages.
 
 ## 🎭 Features
 
 ### Core Capabilities
-- **Multi-Stage Joke Generation**: Topic analysis → angle exploration → structured joke creation → iterative refinement
-- **Bias-Minimized Evaluation**: LLM-as-a-judge with position shuffling, ensemble perspectives, and comparative analysis
-- **Comprehensive Analysis**: Statistical scoring, confidence intervals, and detailed performance insights
-- **Batch Processing**: Handle multiple topics efficiently with parallel processing
+- **PlanSearch Methodology**: Implements a PlanSearch algorithm to first generate diverse "primitive observations" about a topic, then combines them into "combinatorial plans" to guide joke creation.
+- **Structured Joke Generation**: Jokes are generated based on explicit plans, allowing for more controlled and varied outputs.
+- **LLM-as-a-Judge Evaluation**: A robust evaluation pipeline that uses an LLM to score jokes based on multiple criteria.
+- **Bias-Minimized Evaluation**: Incorporates techniques like position shuffling to mitigate positional bias in LLM-based evaluations.
+- **Comprehensive Analysis**: Provides detailed analysis of joke quality and performance.
+- **Modular Pipeline**: The entire process is broken down into a clear, modular pipeline from planning to final analysis.
 
 ### Technical Highlights
-- **PlanSearch Methodology**: Break down creative process into discrete, manageable steps
-- **Diverse Angle Generation**: Basic humor categories, advanced techniques, and hybrid approaches
-- **Multi-Dimensional Scoring**: Cleverness, surprise, relatability, timing, and overall funniness
-- **Research-Backed Bias Mitigation**: Random ordering, multiple evaluation rounds, ensemble judging
+- **Discrete Creative Steps**: Separates the creative process into Planning → Generation → Evaluation.
+- **Combinatorial Creativity**: Explores a wide creative space by combining smaller ideas (observations) into larger joke concepts (plans).
+- **Multi-Dimensional Scoring**: Evaluates jokes based on humor, relevance, and originality.
+- **Research-Backed Bias Mitigation**: Uses random ordering and multiple evaluation rounds to ensure fair assessment.
 
 ## 🚀 Quick Start
 
@@ -22,7 +24,7 @@ A sophisticated system for computational humor generation using the PlanSearch m
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/your-username/joker-llm.git
 cd joker-llm
 
 # Install dependencies
@@ -31,193 +33,103 @@ pip install -r requirements.txt
 
 ### Basic Usage
 
-```python
-from joke_plan_search_complete import JokePlanSearchComplete, create_openai_client
+The main entry point for running the system is `run_joke_search.py`. This script executes the entire pipeline.
 
-# Setup with your API key
-api_client = create_openai_client("your-api-key-here")
-joke_search = JokePlanSearchComplete(api_client)
-
-# Generate and evaluate jokes
-results = joke_search.run_complete_pipeline("artificial intelligence")
-
-# View results
-print(results["quick_summary"])
+```bash
+# Run the complete joke generation and evaluation pipeline
+python run_joke_search.py --topic "artificial intelligence"
 ```
 
-### Google Colab Setup
+You can also import and run the pipeline from another Python script:
 
 ```python
-# Install in Colab
-!pip install openai anthropic groq pandas tqdm
+from joke_plansearch_pipeline import run_joke_generation_pipeline
 
-# Import and setup
-from joke_plan_search_complete import JokePlanSearchComplete, setup_for_colab
-config = setup_for_colab()
+# Define the topic
+topic = "coffee"
 
-# Quick demo
-joke_search = JokePlanSearchComplete()  # Uses mock client for demo
-summary = joke_search.run_quick_demo("coffee")
-print(summary)
+# Run the pipeline
+final_report = run_joke_generation_pipeline(topic)
+
+# View the results
+print(final_report)
 ```
 
 ## 📖 System Architecture
 
-### Phase 1: Environment Setup
-- API key configuration and client initialization
-- Bias mitigation parameter configuration
-- Rate limiting and error handling setup
+The system is designed as a multi-stage pipeline that implements the PlanSearch methodology.
 
-### Phase 2: Joke Generation Pipeline
-1. **Topic Analysis**: Context understanding, wordplay identification, cultural references
-2. **Angle Generation**: 
-   - Basic approaches (puns, observational, absurdist, character-based, irony)
-   - Advanced techniques (misdirection, meta-humor, callbacks)
-   - Hybrid combinations with unexpected elements
-3. **Joke Creation**: Structured outline → full joke generation
-4. **Refinement**: Critique and improvement through multiple rounds
-5. **Diversity Enhancement**: Similarity detection and varied approach generation
+### Phase 1: Primitive Observation Generation
+- The process starts by generating a set of "primitive observations" about the given topic. These are small, distinct ideas that serve as building blocks for jokes.
+- **[Read more about Phase 1](./phase1_observations.md)**
 
-### Phase 3: Evaluation Pipeline
-1. **Multi-Dimensional Assessment**: 5-point scoring across humor dimensions
-2. **Comparative Analysis**: Pairwise comparisons with win/loss tracking
-3. **Ensemble Evaluation**: Multiple judge perspectives (casual audience, expert critic)
-4. **Bias Detection**: Statistical analysis of scoring patterns and position effects
+### Phase 2: Combinatorial Plan Generation
+- The primitive observations are then combined to form "combinatorial plans," which are high-level concepts for jokes.
+- **[Read more about Phase 2](./phase2_plans.md)**
 
-### Phase 4: Analysis & Reporting
-1. **Score Aggregation**: Weighted averaging with confidence intervals
-2. **Final Rankings**: Comprehensive joke ranking with statistical measures
-3. **Insight Generation**: LLM-powered analysis of successful patterns
-4. **Export Options**: JSON, CSV, and formatted text outputs
+### Phase 3: Joke Generation
+- For each plan, the system uses an LLM to generate a joke, translating the concept into a final text.
+- **[Read more about Phase 3](./phase3_generation.md)**
 
-## 🔧 Configuration Options
+### Phase 4: Joke Evaluation
+- The generated jokes are evaluated by an LLM-as-a-Judge, which scores them on multiple criteria while mitigating for positional bias.
+- **[Read more about Phase 4](./phase4_evaluation.md)**
 
-### Bias Mitigation Settings
-```python
-from joke_plan_search_core import BiasConfig
+### Phase 5: Analysis & Reporting
+- The evaluation scores are aggregated, and a final, ranked report is generated in JSON format.
+- **[Read more about Phase 5](./phase5_analysis.md)**
 
-config = BiasConfig()
-config.evaluation_rounds = 3
-config.judge_temperature = 0.3
-config.min_comparisons_per_joke = 5
-config.shuffle_iterations = 2
-```
+## 🔧 Core Components
 
-### Pipeline Parameters
-```python
-results = joke_search.run_complete_pipeline(
-    "your_topic",
-    refinement_rounds=2,           # Number of joke improvement iterations
-    top_n=5,                      # Top jokes to analyze in detail
-    similarity_threshold=0.7,     # Threshold for detecting similar jokes
-    include_bias_analysis=True    # Include statistical bias detection
-)
-```
+-   `joke_plansearch_pipeline.py`: Orchestrates the entire pipeline from start to finish.
+-   `joke_plan_search.py`: Contains the core `JokePlanSearch` class that implements the PlanSearch logic (observations, plans, joke generation).
+-   `joke_evaluation.py`: Handles the LLM-as-a-Judge evaluation process.
+-   `joke_analysis.py`: Provides tools for analyzing the results.
+-   `run_joke_search.py`: A command-line script to easily run the pipeline.
 
-## 📊 Output Formats
+## 📊 Output Format
 
-### Quick Summary
-```
-JokePlanSearch Results for Topic: 'artificial intelligence'
-============================================================
-Total jokes generated: 12
-Evaluation completed with 5 different scoring dimensions
+The final output is a JSON report containing a summary, the best joke, and a ranked list of all generated jokes with their scores and the plans that created them.
 
-Top 5 Jokes:
-----------------------------------------
-1. Why did the AI go to therapy? Because it had too many deep learning issues!
-   Score: 8.7 (95% CI: 8.2-9.1)
-   Angle: Pun combining AI terminology with mental health
-```
-
-### Detailed Report (JSON)
 ```json
 {
-  "experiment_summary": {
-    "topic": "artificial intelligence",
-    "total_jokes_generated": 12,
-    "top_score": 8.7,
-    "average_score": 6.4
+  "best_joke": {
+    "joke": "Why did the coffee file a police report? It got mugged!",
+    "score": 9,
+    "plan": "A pun combining 'mug' as a cup and 'mugged' as being robbed."
   },
-  "ranked_jokes": [...],
-  "analysis_insights": "...",
-  "performance_metrics": {...},
-  "bias_analysis": {...}
+  "ranked_jokes": [
+    {
+      "joke": "Why did the coffee file a police report? It got mugged!",
+      "score": 9,
+      "plan": "A pun combining 'mug' as a cup and 'mugged' as being robbed."
+    }
+  ],
+  "summary": {
+    "topic": "coffee",
+    "total_jokes_generated": 10,
+    "average_score": 7.5
+  }
 }
 ```
 
 ## 🎯 Use Cases
 
 ### Research Applications
-- **Computational Humor Studies**: Analyze what makes jokes effective
-- **Bias Detection Research**: Study LLM evaluation consistency and biases
-- **Creative AI Development**: Benchmark joke generation approaches
+- **Computational Creativity**: Studying structured approaches to creative generation.
+- **Prompt Engineering**: Analyzing the impact of structured vs. unstructured prompts.
+- **LLM Evaluation**: Researching and mitigating biases in LLM-based assessment.
 
 ### Practical Applications
-- **Content Creation**: Generate jokes for specific topics or audiences
-- **Comedy Writing Assistance**: Explore different humor angles and approaches
-- **Educational Tools**: Teach humor theory through systematic analysis
-
-### Experimental Design
-- **A/B Testing**: Compare different generation or evaluation strategies
-- **Batch Analysis**: Process multiple topics for comparative studies
-- **Longitudinal Studies**: Track joke quality improvements over time
-
-## 🔬 Methodology Details
-
-### PlanSearch Implementation
-Based on recent research in computational creativity, our implementation breaks joke generation into discrete planning and execution phases:
-
-1. **Strategic Planning**: Analyze topic for humor potential and generate diverse approaches
-2. **Tactical Execution**: Convert each approach into structured jokes
-3. **Quality Assurance**: Systematic refinement and improvement
-4. **Comprehensive Evaluation**: Multi-perspective assessment with bias controls
-
-### Bias Mitigation Techniques
-- **Position Randomization**: Shuffle joke order across evaluation rounds
-- **Temperature Control**: Lower temperature for evaluation consistency
-- **Ensemble Perspectives**: Multiple judge personas (casual, expert)
-- **Comparative Validation**: Pairwise comparisons to validate absolute scores
-- **Statistical Analysis**: Confidence intervals and bias detection metrics
-
-## 📈 Performance Metrics
-
-The system tracks comprehensive performance data:
-
-- **Generation Efficiency**: API calls, token usage, processing time
-- **Evaluation Quality**: Inter-rater reliability, confidence measures
-- **Bias Detection**: Position effects, score distributions, consistency analysis
-- **Success Rates**: Joke generation success, evaluation completion rates
-
-## 🤝 Contributing
-
-We welcome contributions! Areas of particular interest:
-
-- **New Humor Categories**: Additional joke generation approaches
-- **Evaluation Dimensions**: Additional scoring criteria and perspectives
-- **Bias Mitigation**: Enhanced techniques for fair evaluation
-- **API Integrations**: Support for additional LLM providers
-- **Analysis Tools**: New visualization and insight generation methods
-
-## 📚 References
-
-This implementation draws from research in:
-- Computational creativity and humor generation
-- LLM-as-a-judge methodologies and bias mitigation
-- PlanSearch techniques for creative problem solving
-- Statistical evaluation and confidence interval estimation
+- **Content Creation**: A tool for generating creative and diverse jokes for any topic.
+- **Comedy Writing Assistant**: Helping writers explore a wide range of humor angles systematically.
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+MIT License - see the `LICENSE` file for details.
 
-## 🔗 Links
+## 🔗 Resources [WIP]
 
-- [Google Colab Demo](link-to-colab-notebook)
-- [API Documentation](link-to-api-docs)
+
 - [Research Paper](link-to-paper)
 - [Example Results](link-to-examples)
-
----
-
-**Ready to generate some laughs with AI? Get started with the quick demo above!** 🎭✨ 
