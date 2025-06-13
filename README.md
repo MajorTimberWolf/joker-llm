@@ -131,5 +131,5 @@ MIT License - see the `LICENSE` file for details.
 ## 🔗 Resources [WIP]
 
 
-- [Research Paper](link-to-paper)
-- [Example Results](link-to-examples)
+[PlanSearch](https://arxiv.org/pdf/2409.03733)
+- [Example Results [Need to update]](link-to-examples)
