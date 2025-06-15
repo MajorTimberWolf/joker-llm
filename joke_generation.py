@@ -224,16 +224,19 @@ Format as:
             future_to_angle = {}
             
             for angle in self.joke_angles:
-                prompt = f"""Create a joke using this approach:
-Topic: "{topic}"
-Angle: "{angle}"
-Context: {context}
+                prompt = f"""You are a comedian creating a joke specifically about "{topic}". Use this creative approach:
 
-Step 1: Write a brief outline of your joke structure (setup, punchline, any callbacks)
-Step 2: Write the complete joke
+TOPIC: {topic}
+APPROACH: {angle}
+CONTEXT: {context}
 
-Outline: [Your joke structure here]
-Joke: [Your complete joke here]"""
+IMPORTANT: Your joke MUST be specifically about {topic}. Do not create generic jokes about other topics.
+
+Step 1: Plan your joke structure specifically about {topic}
+Step 2: Write a complete joke that is clearly about {topic}
+
+Outline: [Your joke structure about {topic}]
+Joke: [Your complete joke about {topic}]"""
                 
                 future = executor.submit(self.call_llm, prompt)
                 future_to_angle[future] = angle
@@ -324,6 +327,95 @@ Joke: [Your complete joke here]"""
                         logger.error(f"Failed to refine joke: {str(e)}")
             
             logger.info(f"Completed refinement round {round_num + 1}")
+    
+    def ensure_joke_diversity(self, similarity_threshold: float = 0.7) -> None:
+        """
+        Phase 2.5: Remove similar jokes to ensure diversity in the final set.
+        
+        Args:
+            similarity_threshold: Threshold for determining joke similarity (0.0-1.0)
+        """
+        if not self.joke_candidates:
+            raise ValueError("Must generate jokes before ensuring diversity")
+            
+        logger.info(f"Ensuring joke diversity with threshold {similarity_threshold}")
+        
+        # Find groups of similar jokes
+        similar_groups = self._find_similar_joke_groups(similarity_threshold)
+        
+        # For each group, keep only the best joke (by score if available, or first one)
+        jokes_to_remove = []
+        
+        for group in similar_groups:
+            if len(group) > 1:
+                # Sort by score if available, otherwise keep first one
+                group_candidates = [self.joke_candidates[i] for i in group]
+                
+                # Try to sort by existing scores
+                scored_candidates = []
+                for candidate in group_candidates:
+                    if candidate.scores:
+                        avg_score = statistics.mean(candidate.scores.values())
+                        scored_candidates.append((candidate, avg_score))
+                
+                if scored_candidates:
+                    # Sort by score and keep the best one
+                    scored_candidates.sort(key=lambda x: x[1], reverse=True)
+                    best_candidate = scored_candidates[0][0]
+                    
+                    # Mark others for removal
+                    for candidate in group_candidates:
+                        if candidate != best_candidate:
+                            jokes_to_remove.append(candidate)
+                else:
+                    # No scores available, keep the first one (arbitrarily)
+                    for candidate in group_candidates[1:]:
+                        jokes_to_remove.append(candidate)
+        
+        # Remove duplicate jokes
+        for joke_to_remove in jokes_to_remove:
+            if joke_to_remove in self.joke_candidates:
+                self.joke_candidates.remove(joke_to_remove)
+        
+        logger.info(f"Removed {len(jokes_to_remove)} similar jokes, {len(self.joke_candidates)} unique jokes remain")
+    
+    def _find_similar_joke_groups(self, threshold: float) -> list:
+        """Find groups of similar jokes based on text similarity."""
+        similar_groups = []
+        processed_indices = set()
+        
+        for i, candidate_a in enumerate(self.joke_candidates):
+            if i in processed_indices:
+                continue
+                
+            current_group = [i]
+            joke_a = candidate_a.refined_joke or candidate_a.full_joke
+            words_a = set(joke_a.lower().split())
+            
+            for j, candidate_b in enumerate(self.joke_candidates[i+1:], i+1):
+                if j in processed_indices:
+                    continue
+                    
+                joke_b = candidate_b.refined_joke or candidate_b.full_joke
+                words_b = set(joke_b.lower().split())
+                
+                # Calculate Jaccard similarity
+                if words_a and words_b:
+                    intersection = len(words_a & words_b)
+                    union = len(words_a | words_b)
+                    similarity = intersection / union if union > 0 else 0
+                    
+                    if similarity >= threshold:
+                        current_group.append(j)
+                        processed_indices.add(j)
+            
+            if len(current_group) > 1:
+                similar_groups.append(current_group)
+                processed_indices.update(current_group)
+            else:
+                processed_indices.add(i)
+        
+        return similar_groups
     
     def _refine_single_joke(self, candidate: JokeCandidate) -> None:
         """Refine a single joke through critique and improvement."""

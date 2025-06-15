@@ -10,6 +10,28 @@ class GroqConfig:
     """Configuration management for Groq API usage patterns."""
     
     @staticmethod
+    def free_tier_optimized():
+        """Ultra-optimized configuration for Groq free tier - minimal API calls."""
+        config = BiasConfig()
+        config.evaluation_rounds = 1
+        config.min_comparisons_per_joke = 1
+        
+        return {
+            "bias_config": config,
+            "pipeline_settings": {
+                "refinement_rounds": 0,
+                "top_n": 3,
+                "include_bias_analysis": False,
+                "num_angles": 5,  # Reduce from default 11
+                "max_jokes": 5    # Generate fewer jokes
+            },
+            "model_preference": "qwen/qwen3-32b",  # 60 requests/min instead of 30!
+            "estimated_calls": 12,
+            "estimated_time": "45-60 seconds",
+            "rate_limit_delay": 1.1  # Faster than default 2.1s
+        }
+    
+    @staticmethod
     def fast_demo():
         """Quick demo configuration - minimal API calls."""
         config = BiasConfig()
@@ -122,7 +144,7 @@ class GroqModelSelector:
             "requests_per_min": 60,  # Double the request rate!
             "quality": "very_good",
             "speed": "fast",
-            "use_case": "High request volume workflows"
+            "use_case": "High request volume workflows, FREE TIER OPTIMAL"
         }
     }
     
@@ -133,9 +155,11 @@ class GroqModelSelector:
         
         Args:
             expected_calls: Expected number of API calls
-            priority: "speed", "quality", "balanced", or "token_volume"
+            priority: "speed", "quality", "balanced", "token_volume", or "free_tier"
         """
-        if priority == "speed":
+        if priority == "free_tier":
+            return "qwen/qwen3-32b"  # 60 requests/min - BEST for free tier!
+        elif priority == "speed":
             return "llama-3.1-8b-instant"
         elif priority == "quality":
             return "llama-3.3-70b-versatile"
@@ -165,6 +189,7 @@ class GroqModelSelector:
 def get_recommended_config(use_case: str = "balanced"):
     """Get recommended configuration for different use cases."""
     configs = {
+        "free": GroqConfig.free_tier_optimized(),
         "demo": GroqConfig.fast_demo(),
         "balanced": GroqConfig.balanced_quality(),
         "quality": GroqConfig.high_quality(),
@@ -177,7 +202,7 @@ if __name__ == "__main__":
     print("🔧 Groq Configuration Options")
     print("=" * 50)
     
-    configs = ["demo", "balanced", "quality", "safe"]
+    configs = ["free", "demo", "balanced", "quality", "safe"]
     for config_name in configs:
         config = get_recommended_config(config_name)
         print(f"\n📋 {config_name.upper()} Configuration:")

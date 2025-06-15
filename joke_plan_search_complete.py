@@ -54,6 +54,8 @@ class JokePlanSearchComplete(
                 - min_comparisons (int): Minimum pairwise comparisons per joke
                 - similarity_threshold (float): Threshold for joke similarity detection
                 - include_bias_analysis (bool): Whether to include bias detection
+                - num_angles (int): Number of joke angles to generate (default: 11)
+                - max_jokes (int): Maximum number of jokes to generate (default: 11)
                 
         Returns:
             Dictionary containing complete results and analysis
@@ -62,6 +64,14 @@ class JokePlanSearchComplete(
         
         try:
             logger.info(f"Starting complete JokePlanSearch pipeline for topic: '{topic}'")
+            
+            # Apply free tier optimizations if specified
+            num_angles = kwargs.get('num_angles', 11)
+            max_jokes = kwargs.get('max_jokes', 11)
+            
+            # Set expected API calls for rate limiting optimization
+            estimated_calls = 5 + num_angles + max_jokes * 2 + kwargs.get('refinement_rounds', 2) * max_jokes + 10
+            self.expected_api_calls = estimated_calls
             
             # Phase 1: Setup (already done in __init__)
             logger.info("Phase 1: System setup completed")
@@ -72,15 +82,31 @@ class JokePlanSearchComplete(
             # Step 2.1: Topic Analysis
             self.analyze_topic(topic)
             
-            # Step 2.2: Generate Diverse Joke Angles
+            # Step 2.2: Generate Diverse Joke Angles (with optimization)
+            if hasattr(self, 'generate_diverse_joke_angles'):
+                # Store original method temporarily
+                original_method = self.generate_diverse_joke_angles
+                
+                # Override for optimized generation
+                def optimized_angles():
+                    angles = original_method()
+                    return angles[:num_angles]  # Limit angles for free tier
+                
+                self.generate_diverse_joke_angles = optimized_angles
+                
             self.generate_diverse_joke_angles()
             
-            # Step 2.3: Generate Jokes from Angles
+            # Step 2.3: Generate Jokes from Angles (with optimization)
             self.generate_jokes_from_angles()
+            
+            # Limit jokes for free tier optimization
+            if len(self.joke_candidates) > max_jokes:
+                self.joke_candidates = self.joke_candidates[:max_jokes]
             
             # Step 2.4: Refine Jokes
             refinement_rounds = kwargs.get('refinement_rounds', 2)
-            self.refine_jokes(refinement_rounds)
+            if refinement_rounds > 0:
+                self.refine_jokes(refinement_rounds)
             
             # Step 2.5: Ensure Diversity
             similarity_threshold = kwargs.get('similarity_threshold', 0.7)

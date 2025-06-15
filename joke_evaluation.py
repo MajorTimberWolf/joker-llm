@@ -18,6 +18,11 @@ logger = logging.getLogger(__name__)
 class JokeEvaluationMixin:
     """Mixin class containing joke evaluation methods for JokePlanSearch."""
     
+    def __init__(self, *args, **kwargs):
+        """Initialize evaluation-specific attributes."""
+        super().__init__(*args, **kwargs)
+        self.scores_by_round = {}  # Initialize to prevent AttributeError
+    
     def evaluate_jokes_multidimensional(self) -> Dict[str, Any]:
         """
         Phase 3.2: Multi-dimensional evaluation of jokes across humor criteria.
