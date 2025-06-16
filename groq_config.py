@@ -25,10 +25,10 @@ class GroqConfig:
                 "num_angles": 5,  # Reduce from default 11
                 "max_jokes": 5    # Generate fewer jokes
             },
-            "model_preference": "qwen/qwen3-32b",  # 60 requests/min instead of 30!
+            "model_preference": "meta-llama/llama-4-scout-17b-16e-instruct",
             "estimated_calls": 12,
             "estimated_time": "45-60 seconds",
-            "rate_limit_delay": 1.1  # Faster than default 2.1s
+            "rate_limit_delay": 2.1
         }
     
     @staticmethod
@@ -158,7 +158,7 @@ class GroqModelSelector:
             priority: "speed", "quality", "balanced", "token_volume", or "free_tier"
         """
         if priority == "free_tier":
-            return "qwen/qwen3-32b"  # 60 requests/min - BEST for free tier!
+            return "meta-llama/llama-4-scout-17b-16e-instruct"
         elif priority == "speed":
             return "llama-3.1-8b-instant"
         elif priority == "quality":

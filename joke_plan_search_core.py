@@ -123,13 +123,16 @@ class JokePlanSearch:
         # For free tier users, prioritize Qwen model (60 requests/min vs 30 for others)
         expected_calls = getattr(self, 'expected_api_calls', 30)  # Default estimate
         
-        if expected_calls > 30:  # High volume workload
-            # Use Qwen for better rate limits (60/min) or high-token model
-            return "qwen/qwen3-32b"  # 60 requests/min - BEST for free tier heavy usage
-        elif expected_calls > 15:  # Moderate workload
-            return "qwen/qwen3-32b"  # Still better rate limits than alternatives
-        else:  # Light workload, can prioritize quality
-            return "llama-3.3-70b-versatile"  # 12,000 tokens/min, best quality
+        # Strategy:
+        # • Heavy > 45 calls → pick Qwen for 60 req/min.
+        # • Medium 31-45 calls → still Qwen.
+        # • Light ≤ 30 calls (typical free-tier run) → use the new Scout 17B model.
+        if expected_calls > 45:  # Very high workload
+            return "qwen/qwen3-32b"
+        elif expected_calls > 30:  # High but within one-minute budget
+            return "qwen/qwen3-32b"
+        else:  # Free-tier and general low/medium workloads
+            return "meta-llama/llama-4-scout-17b-16e-instruct"
     
     def call_llm(self, prompt: str, temperature: float = None, max_retries: int = 3) -> str:
         """
