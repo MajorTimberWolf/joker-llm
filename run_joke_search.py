@@ -53,6 +53,26 @@ def run_optimized_pipeline(topic: str, optimization_level: str = "free"):
         max_jokes=pipeline_settings.get("max_jokes", 5)
     )
     
+    # ------------------------------------------------------------------
+    # Persist results to disk so they can be inspected later
+    # ------------------------------------------------------------------
+    try:
+        from datetime import datetime
+
+        # Create a simple, filesystem-safe filename
+        safe_topic = topic.strip().lower().replace(" ", "_") or "untitled"
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"{safe_topic}_results_{timestamp}.json"
+
+        # Use the built-in helper on the JokePlanSearch object – this includes
+        # detailed analysis, ranked jokes, and performance metrics.
+        joke_search.save_results_to_json(output_filename, include_bias_analysis=True)
+
+        print(f"\n📁 Results written to '{output_filename}'")
+    except Exception as save_err:
+        # Saving should never break the main flow – just warn the user.
+        print(f"⚠️  Failed to save results automatically: {save_err}")
+
     return result
 
 if __name__ == "__main__":

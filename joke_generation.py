@@ -247,13 +247,22 @@ Joke: [Your complete joke about {topic}]"""
                     response = future.result()
                     outline, joke = self._parse_joke_response(response)
                     
+                    # Guard against cases where the LLM response didn't follow
+                    # the expected format – skip empty jokes so they don't
+                    # propagate downstream as blank strings.
+                    if not joke.strip():
+                        logger.warning(
+                            f"No joke text extracted for angle '{angle[:30]}...' – skipping this candidate."
+                        )
+                        continue
+
                     candidate = JokeCandidate(
                         angle=angle,
                         outline=outline,
                         full_joke=joke
                     )
                     joke_candidates.append(candidate)
-                    logger.info(f"Generated joke for angle: {angle[:50]}...")
+                    logger.info(f"Generated joke for angle: {angle[:50]}... → {joke[:60]}…")
                     
                 except Exception as e:
                     logger.error(f"Failed to generate joke for angle '{angle}': {str(e)}")
@@ -273,17 +282,33 @@ Joke: [Your complete joke about {topic}]"""
         
         for line in lines:
             line = line.strip()
-            if line.startswith('Outline:'):
+            if line.lower().startswith('outline'):
                 current_section = 'outline'
-                outline = line[8:].strip()
-            elif line.startswith('Joke:'):
+                # Allow for different separators like "Outline -" or "Outline::"
+                outline = line.split(':', 1)[-1].strip().lstrip('-').strip()
+            elif line.lower().startswith('joke'):
                 current_section = 'joke'
-                joke = line[5:].strip()
+                joke = line.split(':', 1)[-1].strip().lstrip('-').strip()
             elif current_section == 'outline' and line:
                 outline += ' ' + line
             elif current_section == 'joke' and line:
                 joke += ' ' + line
         
+        # ------------------------------------------------------------------
+        # Fallbacks – if "Joke:" marker wasn't found, assume the last non-empty
+        # paragraph is the joke text.
+        # ------------------------------------------------------------------
+        if not joke.strip():
+            non_empty_lines = [ln.strip() for ln in lines if ln.strip()]
+            if non_empty_lines:
+                # Heuristic: take the last line if it's not the outline.
+                last_line = non_empty_lines[-1]
+                if last_line.lower().startswith('outline'):
+                    # If the response only had an outline, leave joke empty.
+                    pass
+                else:
+                    joke = last_line
+
         return outline.strip(), joke.strip()
     
     def refine_jokes(self, refinement_rounds: int = 2) -> None:
