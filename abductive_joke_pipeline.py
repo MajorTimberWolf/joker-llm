@@ -263,3 +263,85 @@ Punchline: "Turns out I've been destroying the Federal Reserve of cat money ever
         absurd = JokePremise(f"{topic} secretly operates according to bizarre magical rules.", "absurd")
         return grounding, absurd
     
+    def generate_abductive_joke(self, joke_world: JokeWorld) -> AbductiveJoke:
+        """Generate complete joke with setup and punchline"""
+        logger.info(f"Generating abductive joke for topic: {joke_world.topic}")
+        
+        prompt = self.ABDUCTIVE_JOKE_PROMPT.format(
+            topic=joke_world.topic,
+            grounding_premise=joke_world.grounding_premise.content,
+            absurd_premise=joke_world.absurd_premise.content
+        )
+        
+        response = self.call_llm(prompt, temperature=0.9)
+        
+        # Parse setup and punchline
+        setup = ""
+        punchline = ""
+        
+        lines = response.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('Setup:'):
+                setup = line[6:].strip()
+            elif line.startswith('Punchline:'):
+                punchline = line[10:].strip()
+        
+        if not setup or not punchline:
+            # Fallback parsing
+            setup, punchline = self._parse_joke_fallback(response)
+        
+        reasoning_chain = f"Grounding: {joke_world.grounding_premise.content} → Absurd: {joke_world.absurd_premise.content} → Abductive reasoning applied"
+        
+        joke = AbductiveJoke(
+            joke_world=joke_world,
+            setup=setup,
+            punchline=punchline,
+            reasoning_chain=reasoning_chain,
+            metadata={
+                'generation_temperature': 0.9,
+                'api_calls_used': 1,
+                'timestamp': time.time()
+            }
+        )
+        
+        logger.info(f"Generated joke: {setup[:30]}... → {punchline[:30]}...")
+        return joke
+    
+    def _parse_joke_fallback(self, response: str) -> Tuple[str, str]:
+        """Fallback parsing for joke response"""
+        sentences = [s.strip() for s in response.split('.') if s.strip()]
+        
+        if len(sentences) >= 2:
+            setup = sentences[0] + '.'
+            punchline = sentences[1] + '.'
+            return setup, punchline
+        
+        # Ultimate fallback
+        return "Here's an observation about this topic.", "And here's the surprising explanation."
+    
+    def generate_joke_batch(self, topic: str, num_jokes: int = 5) -> List[AbductiveJoke]:
+        """Generate multiple jokes for comparison"""
+        logger.info(f"Generating batch of {num_jokes} jokes for topic: {topic}")
+        
+        jokes = []
+        
+        # Generate multiple joke worlds for variety
+        for i in range(num_jokes):
+            try:
+                # Create new premises each time for variety
+                joke_world = self.establish_joke_world_premises(topic)
+                joke = self.generate_abductive_joke(joke_world)
+                jokes.append(joke)
+                
+                # Add to tracking
+                self.generated_jokes.append(joke)
+                
+            except Exception as e:
+                logger.error(f"Failed to generate joke {i+1}: {str(e)}")
+                continue
+        
+        logger.info(f"Successfully generated {len(jokes)} jokes")
+        return jokes
+
+
