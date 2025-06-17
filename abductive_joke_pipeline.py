@@ -137,3 +137,129 @@ Setup: "I wondered why my cat was so upset about the new vacuum cleaner."
 Punchline: "Turns out I've been destroying the Federal Reserve of cat money every week."
 """
 
+    def __init__(self, llm_client, bias_config: BiasConfig = None):
+        """Initialize the abductive joke pipeline"""
+        self.llm_client = llm_client
+        self.bias_config = bias_config or BiasConfig()
+        self.api_call_count = 0
+        self.last_api_call = 0
+        self.min_delay_between_calls = 1.0
+        
+        # Cache for premise generation to avoid redundant calls
+        self.premise_cache = {}
+        
+        # Experimental tracking
+        self.experiment_results = {}
+        self.generated_jokes = []
+        
+    def call_llm(self, prompt: str, temperature: float = None) -> str:
+        """Make an API call with rate limiting"""
+        if temperature is None:
+            temperature = self.bias_config.generation_temperature
+            
+        # Rate limiting
+        time_since_last_call = time.time() - self.last_api_call
+        if time_since_last_call < self.min_delay_between_calls:
+            time.sleep(self.min_delay_between_calls - time_since_last_call)
+        
+        self.last_api_call = time.time()
+        self.api_call_count += 1
+        
+        # Use the same LLM calling pattern as the existing pipeline
+        if hasattr(self.llm_client, 'chat'):
+            if hasattr(self.llm_client, '_api_key') or 'groq' in str(type(self.llm_client)).lower():
+                # Groq API client
+                response = self.llm_client.chat.completions.create(
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
+            else:
+                # OpenAI-style client
+                response = self.llm_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
+        elif hasattr(self.llm_client, 'messages'):
+            # Anthropic-style client
+            response = self.llm_client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                temperature=temperature,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        else:
+            raise RuntimeError(f"Unsupported LLM client type: {type(self.llm_client)}")
+    
+    def establish_joke_world_premises(self, topic: str) -> JokeWorld:
+        """Generate grounding and absurd premises for a topic"""
+        logger.info(f"Establishing joke world premises for topic: {topic}")
+        
+        # Check cache first
+        if topic in self.premise_cache:
+            logger.info("Using cached premises")
+            return self.premise_cache[topic]
+        
+        prompt = self.PREMISE_GENERATION_PROMPT.format(topic=topic)
+        response = self.call_llm(prompt, temperature=0.8)
+        
+        # Parse the response
+        grounding_premise = None
+        absurd_premise = None
+        
+        lines = response.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('Grounding Premise:'):
+                grounding_premise = JokePremise(
+                    content=line[18:].strip(),
+                    premise_type="grounding"
+                )
+            elif line.startswith('Absurd Premise:'):
+                absurd_premise = JokePremise(
+                    content=line[15:].strip(), 
+                    premise_type="absurd"
+                )
+        
+        if not grounding_premise or not absurd_premise:
+            # Fallback parsing if format isn't exactly followed
+            grounding_premise, absurd_premise = self._parse_premise_fallback(response, topic)
+            if not grounding_premise or not absurd_premise:
+                raise ValueError(f"Failed to parse premises from response: {response}")
+        
+        joke_world = JokeWorld(topic, grounding_premise, absurd_premise)
+        
+        # Cache the result
+        self.premise_cache[topic] = joke_world
+        
+        logger.info(f"Generated premises - Grounding: {grounding_premise.content[:50]}...")
+        logger.info(f"Generated premises - Absurd: {absurd_premise.content[:50]}...")
+        
+        return joke_world
+    
+    def _parse_premise_fallback(self, response: str, topic: str) -> Tuple[JokePremise, JokePremise]:
+        """Fallback parsing method if structured format fails"""
+        lines = [line.strip() for line in response.split('\n') if line.strip()]
+        
+        # Look for any lines that might be premises
+        potential_premises = []
+        for line in lines:
+            if len(line) > 20 and not line.startswith('Topic:') and not line.startswith('Requirements:'):
+                potential_premises.append(line)
+        
+        if len(potential_premises) >= 2:
+            grounding = JokePremise(potential_premises[0], "grounding")
+            absurd = JokePremise(potential_premises[1], "absurd")
+            return grounding, absurd
+        
+        # Ultimate fallback - generate basic premises
+        grounding = JokePremise(f"{topic} is a common part of everyday life.", "grounding")
+        absurd = JokePremise(f"{topic} secretly operates according to bizarre magical rules.", "absurd")
+        return grounding, absurd
+    
