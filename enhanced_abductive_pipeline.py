@@ -309,6 +309,91 @@ The punchline must logically follow from the absurd premise."""
         return min(10.0, max(1.0, score))
 
 
+class MultiJudgeAnalyzer:
+    """Multi-judge evaluation system"""
+    
+    def __init__(self, llm_client, num_judges: int = 3):
+        self.llm_client = llm_client
+        self.num_judges = num_judges
+        
+    def evaluate_logical_consistency_ensemble(self, joke: EnhancedAbductiveJoke) -> Dict[str, Any]:
+        """Multi-judge consistency evaluation"""
+        consistency_prompt = """Rate logical consistency (1-10):
+
+WORLD RULES:
+{premises}
+
+JOKE:
+Setup: {setup}
+Punchline: {punchline}
+
+Score: [1-10 number only]
+Reason: [brief explanation]"""
+        
+        premises_text = "\n".join([f"• {p.content}" for p in joke.joke_world.premises])
+        prompt = consistency_prompt.format(
+            premises=premises_text,
+            setup=joke.setup,
+            punchline=joke.punchline
+        )
+        
+        scores = []
+        explanations = []
+        
+        for i in range(self.num_judges):
+            try:
+                response = self._call_judge(prompt)
+                score, explanation = self._parse_judge_response(response)
+                scores.append(score)
+                explanations.append(f"Judge {i+1}: {explanation}")
+                time.sleep(0.5)  # Rate limit between judges
+            except Exception as e:
+                logger.warning(f"Judge {i+1} failed: {e}")
+                scores.append(5.0)
+                explanations.append(f"Judge {i+1}: Failed")
+        
+        return {
+            'scores': scores,
+            'median_score': statistics.median(scores) if scores else 0,
+            'mean_score': statistics.mean(scores) if scores else 0,
+            'std_score': statistics.stdev(scores) if len(scores) > 1 else 0,
+            'agreement': 1.0 - (statistics.stdev(scores) / 10.0) if len(scores) > 1 else 1.0,
+            'explanations': explanations
+        }
+    
+    def _call_judge(self, prompt: str) -> str:
+        """Call LLM judge"""
+        if hasattr(self.llm_client, 'chat'):
+            response = self.llm_client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=200
+            )
+            return response.choices[0].message.content
+        else:
+            raise RuntimeError("Unsupported client")
+    
+    def _parse_judge_response(self, response: str) -> Tuple[float, str]:
+        """Parse judge response"""
+        score = 5.0
+        explanation = "No explanation"
+        
+        for line in response.split('\n'):
+            if line.startswith('Score:'):
+                try:
+                    score_text = line[6:].strip()
+                    score = float(''.join(c for c in score_text if c.isdigit() or c == '.'))
+                    score = max(1.0, min(10.0, score))
+                except:
+                    pass
+            elif line.startswith('Reason:'):
+                explanation = line[7:].strip()
+        
+        return score, explanation
+
+
+
 
 
 if __name__ == "__main__":
