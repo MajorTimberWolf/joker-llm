@@ -344,6 +344,114 @@ Punchline: "Turns out I've been destroying the Federal Reserve of cat money ever
         logger.info(f"Successfully generated {len(jokes)} jokes")
         return jokes
 
+class JokeAnalyzer:
+    """Analyzes jokes for research purposes"""
+    
+    def __init__(self, llm_client):
+        self.llm_client = llm_client
+        self.api_call_count = 0
+    
+    def call_llm(self, prompt: str, temperature: float = 0.3) -> str:
+        """Make an API call for analysis"""
+        self.api_call_count += 1
+        
+        if hasattr(self.llm_client, 'chat'):
+            if hasattr(self.llm_client, '_api_key') or 'groq' in str(type(self.llm_client)).lower():
+                response = self.llm_client.chat.completions.create(
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
+            else:
+                response = self.llm_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
+        elif hasattr(self.llm_client, 'messages'):
+            response = self.llm_client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                temperature=temperature,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        else:
+            raise RuntimeError(f"Unsupported LLM client type: {type(self.llm_client)}")
+    
+    def analyze_premise_types(self, jokes: List[AbductiveJoke]) -> Dict[str, Any]:
+        """Analyze which premise combinations work best"""
+        logger.info(f"Analyzing premise types for {len(jokes)} jokes")
+        
+        grounding_themes = {}
+        absurd_themes = {}
+        
+        for joke in jokes:
+            # Categorize grounding premises
+            grounding = joke.joke_world.grounding_premise.content.lower()
+            for theme in ['location', 'behavior', 'function', 'appearance', 'social']:
+                if theme in grounding:
+                    grounding_themes[theme] = grounding_themes.get(theme, 0) + 1
+            
+            # Categorize absurd premises
+            absurd = joke.joke_world.absurd_premise.content.lower()
+            for theme in ['secret', 'magical', 'conspiracy', 'alternate reality', 'profession']:
+                if any(word in absurd for word in theme.split()):
+                    absurd_themes[theme] = absurd_themes.get(theme, 0) + 1
+        
+        return {
+            'grounding_themes': grounding_themes,
+            'absurd_themes': absurd_themes,
+            'total_jokes_analyzed': len(jokes)
+        }
+    
+    def measure_logical_consistency(self, joke: AbductiveJoke, world: JokeWorld) -> float:
+        """Score how well the punchline follows from premises"""
+        prompt = f"""Evaluate the logical consistency of this joke within its established world:
+
+WORLD RULES:
+- Grounding Premise: {world.grounding_premise.content}
+- Absurd Premise: {world.absurd_premise.content}
+
+JOKE:
+Setup: {joke.setup}
+Punchline: {joke.punchline}
+
+Rate how well the punchline logically follows from the absurd premise, treating the absurd premise as absolutely true within this world.
+
+Score from 1-10 where:
+1 = The punchline ignores or contradicts the established world rules
+10 = The punchline is a perfect logical consequence of the world rules
+
+Provide only the numeric score (1-10)."""
+
+        response = self.call_llm(prompt)
+        
+        # Extract numeric score
+        try:
+            score = float(''.join(c for c in response if c.isdigit() or c == '.'))
+            return max(1.0, min(10.0, score))
+        except:
+            return 5.0  # Default middle score if parsing fails
+    
+    def compare_abductive_vs_traditional(self, topic: str, num_samples: int = 20) -> Dict[str, Any]:
+        """Compare abductive pipeline against baseline methods"""
+        logger.info(f"Comparing abductive vs traditional approaches for topic: {topic}")
+        
+        # This would require integration with existing pipeline
+        # For now, return placeholder structure
+        return {
+            'topic': topic,
+            'abductive_scores': [],
+            'traditional_scores': [],
+            'statistical_significance': None,
+            'effect_size': None,
+            'recommendations': "Further testing needed"
+        }
 
 class AbductiveExperimentFramework:
     """Experimental design features for abductive joke research"""
