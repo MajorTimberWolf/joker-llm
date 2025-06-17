@@ -345,6 +345,241 @@ Punchline: "Turns out I've been destroying the Federal Reserve of cat money ever
         return jokes
 
 
+class AbductiveExperimentFramework:
+    """Experimental design features for abductive joke research"""
+    
+    def __init__(self, pipeline: AbductiveJokePipeline, analyzer: JokeAnalyzer):
+        self.pipeline = pipeline
+        self.analyzer = analyzer
+        self.experiment_results = {}
+    
+    def run_premise_type_experiment(self, topics: List[str], iterations_per_topic: int = 10) -> Dict[str, Any]:
+        """
+        Test hypothesis: Do jokes with one realistic + one absurd premise 
+        score higher than jokes with two realistic premises?
+        """
+        logger.info(f"Running premise type experiment with {len(topics)} topics, {iterations_per_topic} iterations each")
+        
+        results = {
+            'hypothesis': 'Realistic + Absurd premise combinations outperform realistic + realistic',
+            'topics_tested': topics,
+            'iterations_per_topic': iterations_per_topic,
+            'results_by_topic': {},
+            'aggregate_results': {}
+        }
+        
+        for topic in topics:
+            topic_results = {
+                'abductive_jokes': [],
+                'control_jokes': [],
+                'abductive_scores': [],
+                'control_scores': []
+            }
+            
+            # Generate abductive jokes (realistic + absurd)
+            for i in range(iterations_per_topic):
+                try:
+                    joke_world = self.pipeline.establish_joke_world_premises(topic)
+                    joke = self.pipeline.generate_abductive_joke(joke_world)
+                    consistency_score = self.analyzer.measure_logical_consistency(joke, joke_world)
+                    
+                    topic_results['abductive_jokes'].append(joke)
+                    topic_results['abductive_scores'].append(consistency_score)
+                    
+                except Exception as e:
+                    logger.error(f"Failed abductive generation for {topic}, iteration {i}: {e}")
+            
+            # For control group, we'd need to implement realistic + realistic premise generation
+            # This is a placeholder for that comparison
+            
+            results['results_by_topic'][topic] = topic_results
+        
+        return results
+    
+    def run_abduction_effectiveness_experiment(self, topics: List[str]) -> Dict[str, Any]:
+        """
+        Test hypothesis: Do punchlines generated via abductive reasoning
+        score higher than simpler generation methods?
+        """
+        logger.info(f"Running abduction effectiveness experiment with topics: {topics}")
+        
+        results = {
+            'hypothesis': 'Abductive reasoning produces higher quality punchlines',
+            'topics_tested': topics,
+            'abductive_results': {},
+            'baseline_results': {},
+            'comparison_metrics': {}
+        }
+        
+        for topic in topics:
+            # Generate abductive jokes
+            abductive_jokes = self.pipeline.generate_joke_batch(topic, num_jokes=5)
+            
+            # Analyze logical consistency
+            consistency_scores = []
+            for joke in abductive_jokes:
+                score = self.analyzer.measure_logical_consistency(joke, joke.joke_world)
+                consistency_scores.append(score)
+            
+            results['abductive_results'][topic] = {
+                'jokes': [joke.to_dict() for joke in abductive_jokes],
+                'consistency_scores': consistency_scores,
+                'average_consistency': statistics.mean(consistency_scores) if consistency_scores else 0
+            }
+        
+        return results
+    
+    def analyze_world_consistency_impact(self, jokes: List[AbductiveJoke]) -> Dict[str, Any]:
+        """
+        Measure correlation between logical consistency within the 
+        established world and joke quality ratings
+        """
+        logger.info(f"Analyzing world consistency impact for {len(jokes)} jokes")
+        
+        consistency_scores = []
+        for joke in jokes:
+            score = self.analyzer.measure_logical_consistency(joke, joke.joke_world)
+            consistency_scores.append(score)
+        
+        return {
+            'total_jokes_analyzed': len(jokes),
+            'consistency_scores': consistency_scores,
+            'average_consistency': statistics.mean(consistency_scores) if consistency_scores else 0,
+            'consistency_range': (min(consistency_scores), max(consistency_scores)) if consistency_scores else (0, 0),
+            'standard_deviation': statistics.stdev(consistency_scores) if len(consistency_scores) > 1 else 0
+        }
+
+
+class AbductivePlanSearchIntegration:
+    """Integration points with existing PlanSearch infrastructure"""
+    
+    @staticmethod
+    def integrate_with_plansearch(existing_pipeline, abductive_pipeline: AbductiveJokePipeline):
+        """
+        Allow side-by-side comparison between abductive method 
+        and existing PlanSearch approach
+        """
+        return {
+            'existing_pipeline': existing_pipeline,
+            'abductive_pipeline': abductive_pipeline,
+            'comparison_framework': 'Ready for A/B testing'
+        }
+    
+    @staticmethod
+    def export_for_evaluation(jokes: List[AbductiveJoke], format: str = "human_eval") -> Dict[str, Any]:
+        """
+        Export jokes in format suitable for human evaluation studies
+        """
+        if format == "human_eval":
+            return {
+                'jokes': [
+                    {
+                        'id': i,
+                        'topic': joke.joke_world.topic,
+                        'setup': joke.setup,
+                        'punchline': joke.punchline,
+                        'full_joke': joke.get_full_joke(),
+                        'method': 'abductive_reasoning',
+                        'grounding_premise': joke.joke_world.grounding_premise.content,
+                        'absurd_premise': joke.joke_world.absurd_premise.content
+                    }
+                    for i, joke in enumerate(jokes)
+                ],
+                'evaluation_criteria': [
+                    'humor_rating',
+                    'logical_consistency',
+                    'originality',
+                    'relatability'
+                ],
+                'instructions': 'Rate each joke on a 1-10 scale for each criterion'
+            }
+        else:
+            return {'error': f'Unsupported format: {format}'}
+
+
+class AbductivePlanSearchIntegration:
+    """Integration points with existing PlanSearch infrastructure"""
+    
+    @staticmethod
+    def integrate_with_plansearch(existing_pipeline, abductive_pipeline: AbductiveJokePipeline):
+        """
+        Allow side-by-side comparison between abductive method 
+        and existing PlanSearch approach
+        """
+        return {
+            'existing_pipeline': existing_pipeline,
+            'abductive_pipeline': abductive_pipeline,
+            'comparison_framework': 'Ready for A/B testing'
+        }
+    
+    @staticmethod
+    def export_for_evaluation(jokes: List[AbductiveJoke], format: str = "human_eval") -> Dict[str, Any]:
+        """
+        Export jokes in format suitable for human evaluation studies
+        """
+        if format == "human_eval":
+            return {
+                'jokes': [
+                    {
+                        'id': i,
+                        'topic': joke.joke_world.topic,
+                        'setup': joke.setup,
+                        'punchline': joke.punchline,
+                        'full_joke': joke.get_full_joke(),
+                        'method': 'abductive_reasoning',
+                        'grounding_premise': joke.joke_world.grounding_premise.content,
+                        'absurd_premise': joke.joke_world.absurd_premise.content
+                    }
+                    for i, joke in enumerate(jokes)
+                ],
+                'evaluation_criteria': [
+                    'humor_rating',
+                    'logical_consistency',
+                    'originality',
+                    'relatability'
+                ],
+                'instructions': 'Rate each joke on a 1-10 scale for each criterion'
+            }
+        else:
+            return {'error': f'Unsupported format: {format}'}
+
+
+def create_abductive_pipeline(llm_client) -> AbductiveJokePipeline:
+    """Factory function to create a configured abductive pipeline"""
+    return AbductiveJokePipeline(llm_client)
+
+
+def run_abductive_demo(topic: str, llm_client, num_jokes: int = 3) -> Dict[str, Any]:
+    """Run a quick demonstration of the abductive pipeline"""
+    logger.info(f"Running abductive demo for topic: {topic}")
+    
+    pipeline = create_abductive_pipeline(llm_client)
+    analyzer = JokeAnalyzer(llm_client)
+    
+    # Generate jokes
+    jokes = pipeline.generate_joke_batch(topic, num_jokes)
+    
+    # Analyze results
+    premise_analysis = analyzer.analyze_premise_types(jokes)
+    
+    # Calculate consistency scores
+    consistency_scores = []
+    for joke in jokes:
+        score = analyzer.measure_logical_consistency(joke, joke.joke_world)
+        consistency_scores.append(score)
+    
+    return {
+        'topic': topic,
+        'jokes_generated': len(jokes),
+        'jokes': [joke.to_dict() for joke in jokes],
+        'premise_analysis': premise_analysis,
+        'consistency_scores': consistency_scores,
+        'average_consistency': statistics.mean(consistency_scores) if consistency_scores else 0,
+        'api_calls_used': pipeline.api_call_count + analyzer.api_call_count
+    }
+
+
+
 if __name__ == "__main__":
     # Example usage
     import os
