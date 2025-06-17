@@ -1,5 +1,7 @@
 # JokePlanSearch: LLM-Based Joke Generation with PlanSearch
 
+**If you want to check out my more "experimental" approach with abductive reasoning premises. Click [here](https://github.com/MajorTimberWolf/joker-llm/tree/mtw/feat/abductive-reasoning)**
+
 A sophisticated system for computational humor generation using the PlanSearch methodology, featuring multi-dimensional evaluation with bias mitigation techniques. This project implements a structured approach to creative text generation, breaking down the process into planning, generation, and evaluation stages.
 
 ## 🎭 Features
@@ -110,4 +112,10 @@ MIT License - see the [LICENSE](https://github.com/MajorTimberWolf/joker-llm/blo
 ## 🔗 Resources [WIP]
 
 
-[PlanSearch](https://arxiv.org/pdf/2409.03733)
+- [1. PlanSearch Paper](https://arxiv.org/pdf/2409.03733)
+- [2. A Survey on Large Language Models for Automated Planning](https://arxiv.org/pdf/2502.12435)
+- [3. PlanGenLLMs: A Modern Survey of LLM Planning Capabilities](https://arxiv.org/pdf/2502.11221)
+- [4. Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena](https://arxiv.org/abs/2306.05685)
+- [5. LLM-Collab: a framework for enhancing task planning via chain-of-thought and multi-agent collaboration](https://www.aimspress.com/article/doi/10.3934/aci.2024019?viewType=HTML)*
+
+`*` = Currently reading
