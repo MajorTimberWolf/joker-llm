@@ -345,3 +345,34 @@ Punchline: "Turns out I've been destroying the Federal Reserve of cat money ever
         return jokes
 
 
+if __name__ == "__main__":
+    # Example usage
+    import os
+    
+    # Setup logging
+    logging.basicConfig(level=logging.INFO)
+    
+    try:
+        import groq
+        client = groq.Groq(api_key=os.getenv("GROQ_API_KEY"))
+        
+        # Run demo
+        demo_results = run_abductive_demo("coffee shops", client, num_jokes=2)
+        
+        print("\n🎭 Abductive Joke Pipeline Demo Results")
+        print("=" * 50)
+        print(f"Topic: {demo_results['topic']}")
+        print(f"Jokes Generated: {demo_results['jokes_generated']}")
+        print(f"Average Consistency Score: {demo_results['average_consistency']:.2f}/10")
+        print(f"API Calls Used: {demo_results['api_calls_used']}")
+        
+        for i, joke_data in enumerate(demo_results['jokes']):
+            print(f"\nJoke {i+1}:")
+            print(f"Setup: {joke_data['setup']}")
+            print(f"Punchline: {joke_data['punchline']}")
+            print(f"World - Grounding: {joke_data['joke_world']['grounding_premise']['content']}")
+            print(f"World - Absurd: {joke_data['joke_world']['absurd_premise']['content']}")
+            
+    except Exception as e:
+        print(f"Demo failed: {e}")
+        print("Make sure GROQ_API_KEY is set and groq package is installed") 
