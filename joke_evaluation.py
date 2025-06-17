@@ -199,43 +199,80 @@ REASONING: [brief explanation of scores]
             "total_comparisons": len(comparison_results)
         }
     
-    def _compare_jokes(self, joke_a: str, joke_b: str, idx_a: int, idx_b: int) -> Dict[str, Any]:
-        """Compare two jokes and return the result."""
-        comparison_prompt = f"""Compare these two jokes and determine which is funnier. Consider overall impact, cleverness, and how likely someone is to laugh.
+    def _compare_jokes(
+        self,
+        joke_a: str,
+        joke_b: str,
+        idx_a: int,
+        idx_b: int,
+        topic: str = "",
+    ) -> Dict[str, Any]:
+        """Compare two jokes using an LLM judge while randomising their display order to mitigate position bias.
 
-JOKE A: "{joke_a}"
-JOKE B: "{joke_b}"
+        Args:
+            joke_a: First joke text.
+            joke_b: Second joke text.
+            idx_a: Index of the first joke in the master list.
+            idx_b: Index of the second joke in the master list.
+            topic: Topic for additional context (optional; empty string if unknown).
 
-Which joke is funnier and why?
+        Returns:
+            Dict with the winner, loser indices and extra metadata. Keys `idx_a`/`idx_b`/`winner` remain for
+            backwards-compatibility with existing processing functions. An additional `order_flipped` key is
+            included for downstream bias diagnostics.
+        """
 
-WINNER: [A or B]
-REASONING: [Explain why the winning joke is superior]
-MARGIN: [How much funnier is it? "Slightly", "Moderately", or "Much funnier"]"""
+        import random
+
+        # Decide whether to flip order
+        if random.random() > 0.5:
+            prompt_joke_a, prompt_joke_b = joke_a, joke_b
+            pos_a_idx, pos_b_idx = idx_a, idx_b
+            order_flipped = False
+        else:
+            prompt_joke_a, prompt_joke_b = joke_b, joke_a
+            pos_a_idx, pos_b_idx = idx_b, idx_a
+            order_flipped = True
+
+        comparison_prompt = (
+            f"Compare these two jokes about \"{topic}\" and determine which is funnier:\n\n"
+            f"JOKE A: \"{prompt_joke_a}\"\n\n"
+            f"JOKE B: \"{prompt_joke_b}\"\n\n"
+            "Consider factors like:\n"
+            "- Cleverness and wit\n"
+            "- Surprise/unexpectedness\n"
+            "- Timing and structure\n"
+            "- Overall humor impact\n\n"
+            "Respond with either \"A\" or \"B\" for the funnier joke, followed by a brief explanation."
+        )
 
         response = self.call_llm_judge(comparison_prompt)
-        
-        # Parse response
-        winner = None
-        reasoning = ""
-        margin = ""
-        
-        lines = response.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('WINNER:'):
-                winner_text = line[7:].strip().upper()
-                winner = 'A' if 'A' in winner_text else 'B' if 'B' in winner_text else None
-            elif line.startswith('REASONING:'):
-                reasoning = line[10:].strip()
-            elif line.startswith('MARGIN:'):
-                margin = line[7:].strip()
-        
+
+        result = response.strip()
+
+        # Identify winner letter
+        if result.startswith("A") or "WINNER: A" in result:
+            winner_signal = "A"
+        elif result.startswith("B") or "WINNER: B" in result:
+            winner_signal = "B"
+        else:
+            winner_signal = None  # Fallback handled below
+
+        # Map back to original indices
+        if winner_signal == "A":
+            winner_idx, loser_idx = pos_a_idx, pos_b_idx
+        elif winner_signal == "B":
+            winner_idx, loser_idx = pos_b_idx, pos_a_idx
+        else:
+            winner_idx, loser_idx = idx_a, idx_b  # Fallback in ambiguous cases
+
         return {
-            'idx_a': idx_a,
-            'idx_b': idx_b,
-            'winner': winner,
-            'reasoning': reasoning,
-            'margin': margin
+            "idx_a": idx_a,
+            "idx_b": idx_b,
+            "winner": "A" if winner_idx == idx_a else "B",
+            "reasoning": result,
+            "margin": "",
+            "order_flipped": order_flipped,
         }
     
     def _process_comparison_results(self, comparison_results: List[Dict[str, Any]]) -> None:

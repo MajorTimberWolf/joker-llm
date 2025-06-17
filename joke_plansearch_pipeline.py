@@ -79,12 +79,76 @@ class JokePlanSearchPipeline(JokePlanSearch, JokeGenerationMixin, JokeEvaluation
         for idx, (joke_record, score_dict) in enumerate(scored[:top_n], 1):
             score_val = score_dict.get('corrected_score', score_dict['overall_score'])
             print(f"\n{idx}. SCORE: {score_val:.1f}/10")
-            print(f"   JOKE: {joke_record['refined_joke']}")
+            
+            # Choose the best available joke text
+            joke_to_display = self._select_best_joke_text(joke_record)
+            print(f"   JOKE: {joke_to_display}")
             print(f"   PLAN: {joke_record['plan']['plan_description'][:100]}…")
             print(f"   OBSERVATIONS USED: {', '.join(joke_record['observations_used'])}")
             if 'bias_correction' in score_dict:
                 print(f"   BIAS CORRECTION APPLIED: {score_dict['bias_correction']:+.2f}")
         return scored
+
+    def _select_best_joke_text(self, joke_record):
+        """Select the best joke text from available options."""
+        refined_joke = joke_record.get('refined_joke', '')
+        original_joke = joke_record.get('joke', '')
+        
+        # Check if refined joke looks like critique/meta-text
+        critique_indicators = [
+            'critique', 'analysis', 'suggestion', 'feedback', 'improvement', 
+            'rationale', 'enhanced', 'original joke', 'improved joke',
+            'punchline:', 'setup:', '**', 'the joke', 'version', 'explanation',
+            'changes:', 'refinement', 'better', 'funnier', 'timing', 'impact'
+        ]
+        
+        def looks_like_joke(text):
+            """Check if text looks like an actual joke."""
+            if not text or len(text) < 10:
+                return False
+            
+            # Too long to be a joke
+            if len(text) > 400:
+                return False
+            
+            # Contains critique indicators
+            if any(indicator in text.lower() for indicator in critique_indicators):
+                return False
+            
+            # Starts with typical joke patterns
+            joke_starters = ['why ', 'what ', 'how ', 'a ', 'an ', '"', 'i ', 'my ', 'the ']
+            if any(text.lower().strip().startswith(starter) for starter in joke_starters):
+                return True
+            
+            # Contains question marks (often in jokes)
+            if '?' in text:
+                return True
+            
+            # Reasonable length and no critique words
+            return 20 < len(text) < 300
+        
+        # Check refined joke first
+        if looks_like_joke(refined_joke):
+            return refined_joke
+        
+        # Fall back to original joke
+        if looks_like_joke(original_joke):
+            return original_joke
+        
+        # If both contain critique text, try to extract the cleanest parts
+        for joke_text in [refined_joke, original_joke]:
+            if joke_text:
+                lines = joke_text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if looks_like_joke(line):
+                        return line
+        
+        # Last resort: return the shorter of the two
+        if refined_joke and original_joke:
+            return refined_joke if len(refined_joke) < len(original_joke) else original_joke
+        
+        return refined_joke or original_joke or "No joke available"
 
 # Quick utility for standalone execution
 if __name__ == "__main__":

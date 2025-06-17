@@ -4,7 +4,7 @@ Groq Configuration Management
 Optimized configurations for different Groq usage patterns
 """
 
-from joke_plan_search_complete import BiasConfig
+from joke_plan_search_core import BiasConfig
 
 class GroqConfig:
     """Configuration management for Groq API usage patterns."""

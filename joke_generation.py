@@ -71,7 +71,7 @@ Absurdity Potential: [What unexpected or surreal angles could work with this top
         logger.info("Topic analysis completed")
         return self.topic_analysis
     
-    def generate_diverse_joke_angles(self) -> list:
+    def _deprecated_generate_diverse_joke_angles(self) -> list:
         """
         Phase 2.2: Generate diverse joke angles using multiple humor categories.
         
@@ -154,7 +154,7 @@ Format as:
             logger.info(f"Extracted {len(angles)} {response_type} angles")
         
         # Deduplicate similar angles
-        unique_angles = self._deduplicate_angles(all_angles)
+        unique_angles = self._deprecated_deduplicate_angles(all_angles)
         
         self.joke_angles = unique_angles
         logger.info(f"Generated {len(unique_angles)} unique joke angles")
@@ -182,7 +182,7 @@ Format as:
         
         return angles
     
-    def _deduplicate_angles(self, angles: list) -> list:
+    def _deprecated_deduplicate_angles(self, angles: list) -> list:
         """Remove similar angles using simple keyword overlap."""
         unique_angles = []
         
@@ -353,7 +353,7 @@ Joke: [Your complete joke about {topic}]"""
             
             logger.info(f"Completed refinement round {round_num + 1}")
     
-    def ensure_joke_diversity(self, similarity_threshold: float = 0.7) -> None:
+    def _deprecated_ensure_joke_diversity(self, similarity_threshold: float = 0.7) -> None:
         """
         Phase 2.5: Remove similar jokes to ensure diversity in the final set.
         
@@ -366,7 +366,7 @@ Joke: [Your complete joke about {topic}]"""
         logger.info(f"Ensuring joke diversity with threshold {similarity_threshold}")
         
         # Find groups of similar jokes
-        similar_groups = self._find_similar_joke_groups(similarity_threshold)
+        similar_groups = self._deprecated_find_similar_joke_groups(similarity_threshold)
         
         # For each group, keep only the best joke (by score if available, or first one)
         jokes_to_remove = []
@@ -404,7 +404,7 @@ Joke: [Your complete joke about {topic}]"""
         
         logger.info(f"Removed {len(jokes_to_remove)} similar jokes, {len(self.joke_candidates)} unique jokes remain")
     
-    def _find_similar_joke_groups(self, threshold: float) -> list:
+    def _deprecated_find_similar_joke_groups(self, threshold: float) -> list:
         """Find groups of similar jokes based on text similarity."""
         similar_groups = []
         processed_indices = set()
@@ -504,16 +504,178 @@ Improved Joke: [Your refined joke here]"""
         return critique.strip(), suggestions.strip()
     
     def _extract_refined_joke(self, response: str) -> str:
-        """Extract the refined joke from the response."""
+        """Extract the refined joke from the response with robust parsing."""
+        response = response.strip()
+        
+        # Try various markers that might indicate the joke
+        joke_markers = [
+            'Improved Joke:',
+            'Refined Joke:',
+            'Better Joke:',
+            'Final Joke:',
+            'Joke:',
+            'Here\'s the improved joke:',
+            'The improved joke is:',
+            'Here is the improved joke:',
+            'The improved version:'
+        ]
+        
         lines = response.split('\n')
         
+        # Look for explicit markers
         for line in lines:
             line = line.strip()
-            if line.startswith('Improved Joke:'):
-                return line[14:].strip()
+            for marker in joke_markers:
+                if line.lower().startswith(marker.lower()):
+                    joke_text = line[len(marker):].strip()
+                    # Remove quotes if present
+                    if joke_text.startswith('"') and joke_text.endswith('"'):
+                        joke_text = joke_text[1:-1]
+                    if joke_text and len(joke_text) > 5:  # Ensure it's substantial
+                        return joke_text
         
-        # If no specific marker found, return the whole response
-        return response.strip()
+        # Look for lines that start with typical joke patterns
+        joke_patterns = ['Why ', 'What ', 'How ', 'A ', 'An ', '"']
+        for line in lines:
+            line = line.strip()
+            if len(line) > 15:  # Substantial content
+                for pattern in joke_patterns:
+                    if line.startswith(pattern):
+                        # Remove quotes if present
+                        if line.startswith('"') and line.endswith('"'):
+                            line = line[1:-1]
+                        # Make sure it's not part of critique text
+                        if not any(word in line.lower() for word in ['critique', 'analysis', 'suggestion', 'feedback', 'improvement']):
+                            return line
+        
+        # If still nothing found, look for the shortest substantial line (jokes are usually concise)
+        substantial_lines = [line.strip() for line in lines if 10 < len(line.strip()) < 200]
+        if substantial_lines:
+            # Filter out lines that look like critique
+            joke_candidates = [line for line in substantial_lines 
+                             if not any(word in line.lower() for word in 
+                                      ['critique', 'analysis', 'suggestion', 'feedback', 'improvement', 'rationale', 'enhanced'])]
+            if joke_candidates:
+                # Return the shortest (jokes are usually concise)
+                candidate = min(joke_candidates, key=len)
+                # Remove quotes if present
+                if candidate.startswith('"') and candidate.endswith('"'):
+                    candidate = candidate[1:-1]
+                return candidate
+        
+        # Very last resort: return something that looks like a joke from the original input
+        # This should rarely happen
+        logger.warning(f"Could not extract refined joke from response: {response[:100]}...")
+        return "Joke extraction failed - please check the refinement process."
+    
+    def _extract_joke_from_response(self, response: str) -> str:
+        """Extract the joke from an initial generation response."""
+        response = response.strip()
+        
+        # Try various markers that might indicate the joke
+        joke_markers = [
+            'Joke:',
+            'Here\'s the joke:',
+            'The joke is:',
+            'Complete joke:',
+            'Final joke:',
+            'Here is the joke:'
+        ]
+        
+        lines = response.split('\n')
+        
+        # Look for explicit markers
+        for line in lines:
+            line = line.strip()
+            for marker in joke_markers:
+                if line.lower().startswith(marker.lower()):
+                    joke_text = line[len(marker):].strip()
+                    # Remove quotes if present
+                    if joke_text.startswith('"') and joke_text.endswith('"'):
+                        joke_text = joke_text[1:-1]
+                    if joke_text and len(joke_text) > 5:
+                        return joke_text
+        
+        # Handle Setup/Punchline format
+        setup = ""
+        punchline = ""
+        for line in lines:
+            raw = line.lstrip('-* ').strip()  # remove common list/bullet prefixes
+            lower = raw.lower()
+            if lower.startswith('**setup:**') or lower.startswith('setup:'):
+                setup = raw.split(':', 1)[1].strip(' *"')
+            elif lower.startswith('**punchline:**') or lower.startswith('punchline:'):
+                punchline = raw.split(':', 1)[1].strip(' *"')
+        
+        if setup and punchline:
+            return f"{setup} {punchline}".strip()
+        
+        # Handle case where 'Joke:' marker is present but the actual joke spans multiple lines
+        multi_line_joke = None
+        for idx, line in enumerate(lines):
+            if line.lower().strip().startswith('joke:'):
+                # collect subsequent lines until a blank line or a line containing 'plan', 'observation', etc.
+                collected = line.split(':', 1)[1].strip()
+                j = idx + 1
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    if not next_line:
+                        break
+                    if any(tok in next_line.lower() for tok in ['plan description', 'plan:', 'observations', 'strategy', 'format']):
+                        break
+                    collected += ' ' + next_line
+                    j += 1
+                multi_line_joke = collected.strip(' "')
+                break
+        if multi_line_joke and len(multi_line_joke) > 5:
+            return multi_line_joke
+        
+        # If no marker found, look for lines that look like jokes
+        # Jokes often start with "Why", "What", "How", or are dialogue
+        joke_patterns = ['Why ', 'What ', 'How ', 'A ', 'An ', '"', 'I ', 'My ', 'The ']
+        for line in lines:
+            line = line.strip()
+            if len(line) > 15:  # Substantial content
+                # Check if it looks like a joke
+                for pattern in joke_patterns:
+                    if line.startswith(pattern):
+                        # Remove quotes if present
+                        if line.startswith('"') and line.endswith('"'):
+                            line = line[1:-1]
+                        # Make sure it's not plan description or meta text
+                        if not any(word in line.lower() for word in 
+                                 ['plan', 'description', 'strategy', 'format', 'observation', 'theme', 'unifying']):
+                            return line
+        
+        # Look for the shortest substantial line (jokes are usually concise)
+        substantial_lines = [line.strip() for line in lines if 10 < len(line.strip()) < 200]
+        if substantial_lines:
+            # Filter out meta-text
+            joke_candidates = [line for line in substantial_lines 
+                             if not any(word in line.lower() for word in 
+                                      ['plan', 'description', 'strategy', 'format', 'observation', 'theme', 'unifying', 'execute'])]
+            if joke_candidates:
+                # Return the shortest (jokes are usually concise)
+                candidate = min(joke_candidates, key=len)
+                # Remove quotes if present
+                if candidate.startswith('"') and candidate.endswith('"'):
+                    candidate = candidate[1:-1]
+                return candidate
+        
+        # As a last sophisticated attempt, try to join setup and next line if only setup found
+        if setup and not punchline:
+            # maybe punchline appears after blank line
+            idxs = [i for i,l in enumerate(lines) if 'setup:' in l.lower()]
+            if idxs:
+                idx=idxs[0]
+                if idx+1 < len(lines):
+                    potential = lines[idx+1].strip(' -*"')
+                    if potential:
+                        return f"{setup} {potential}".strip()
+        
+        # Very last resort: log warning and return fallback
+        logger.warning(f"Could not extract joke from response: {response[:100]}...")
+        return "Joke extraction failed - please check the generation process."
     
     def generate_primitive_observations(self, topic: str, context_analysis: str, num_observations: int = 8) -> list:
         """Generate primitive observations that will be combined into plans."""
@@ -601,8 +763,10 @@ Execute this plan to create a complete joke. Follow the plan's structure and for
 Joke: [Your complete joke here]
 """
             response = self.call_llm(joke_prompt)
+            # Extract the actual joke from the response
+            extracted_joke = self._extract_joke_from_response(response)
             joke_results.append({
-                'joke': response.strip(),
+                'joke': extracted_joke,
                 'plan': plan,
                 'observations_used': plan['observations']
             })
