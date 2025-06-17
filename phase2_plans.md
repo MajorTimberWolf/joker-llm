@@ -26,40 +26,29 @@ This step is the core of the "PlanSearch" methodology. It formalizes the creativ
 
 ## The Generation Process
 
-This phase is handled by the `_generate_combinatorial_plans` method in `JokePlanSearch`.
+This phase is handled by the `generate_combinatorial_plans` method in `joke_generation.py`.
 
 1.  **Selecting Observations**: The system takes the list of primitive observations generated in Phase 1.
 2.  **Prompting the LLM**: It then prompts the LLM to find interesting combinations among these observations and formulate them as plans.
 
     ```python
-    # From joke_plan_search.py
-    def _generate_combinatorial_plans(self, observations: List[str], num_plans: int = 10) -> List[str]:
-        """Generates combinatorial joke plans from a list of observations."""
-        logger.info(f"Generating {num_plans} combinatorial plans.")
-        
-        observations_str = "\n".join(f"- {obs}" for obs in observations)
-        
-        prompt = f"""
-        Here is a list of observations about a topic:
-        {observations_str}
+    # From joke_generation.py
+    def generate_combinatorial_plans(self, observations: list, max_plans: int = 15) -> list:
+        """Generate joke plans by combining 2-4 primitive observations."""
+        # ... logic to sample combinations ...
+        for combo in sampled_combos:
+            plan_prompt = f"""
 
-        Your task is to create {num_plans} creative joke plans by combining two or more of these observations.
-        A joke plan is a high-level concept or a blueprint for a joke. It is NOT the joke itself.
-        The best plans come from combining observations in a surprising or non-obvious way.
 
-        For each plan, describe the core idea and which observations it connects.
 
-        Format the output as a JSON list of strings.
-        Example:
-        ["A joke about a cat that uses its ability to land on its feet to become a professional stunt double, connecting the 'lands on their feet' and 'independent' observations.", "A concept where a programmer tries to debug their cat, connecting the 'purring' and 'mysterious behavior' observations."]
+**These are the tasks which are meant to be following:**
+1. Find a unifying theme or connection between these observations
+2. Describe how they could work together in a joke structure
+3. Specify the joke format (one-liner, setup-punchline, dialogue, etc.)
 
-        Output:
-        """
-        response_text = self.call_llm(prompt)
-        # ... parsing logic ...
-    ```
 
-3.  **Parsing the Response**: The system parses the LLM's JSON output to get a list of plan strings.
+
+3.  **Parsing the Response**: The system parses the LLM's free-text response to extract the plan description.
 
 ## Example
 
@@ -74,4 +63,4 @@ This phase is handled by the `_generate_combinatorial_plans` method in `JokePlan
     -   `"A concept for a superhero whose only power is the jitteriness from drinking too much coffee, but they try to frame it as a useful skill. This connects the 'jitteriness' and 'gives energy' observations."`
     -   `"A joke where someone mistakes a cup of black coffee for a magical potion because of its dark appearance and powerful effects, connecting 'dark liquid' and 'need to function' observations."`
 
-With these plans, the system is ready for the next phase: **Joke Generation**. 
+With these plans, the system is ready for the next phase: **Joke Generation**.

@@ -10,32 +10,48 @@ This approach ensures that the generated joke adheres to the creative concept de
 
 ## The Generation Process
 
-This process is handled by the `_generate_joke_from_plan` method within the `JokePlanSearch` class. The system iterates through each combinatorial plan and generates one or more jokes for it.
+This process is handled by the `generate_full_jokes` and `refine_joke` methods within `joke_generation.py`. The system first generates a draft and then refines it.
 
-1.  **Input**: The method takes a single combinatorial plan as input.
+### Step 1: Initial Joke Generation
+The system iterates through each combinatorial plan and generates an initial joke.
 
-2.  **Prompting the LLM**: A prompt is constructed that includes the plan and asks the LLM to execute it by writing a joke.
+1.  **Prompting the LLM**: A prompt is constructed that includes the plan and asks the LLM to execute it.
 
     ```python
-    # From joke_plan_search.py
-    def _generate_joke_from_plan(self, plan: str) -> str:
-        """Generates a single joke from a combinatorial plan."""
-        logger.info(f"Generating joke for plan: {plan[:80]}...")
-        prompt = f"""
-        Your task is to write a short, funny joke based on the following plan.
-        The joke should be a direct execution of the concept described in the plan.
+    # From joke_generation.py
+    def generate_full_jokes(self, topic: str, plans: list) -> list:
+        # ... loops through plans ...
+        joke_prompt = f"""
+<!-- Topic: \"{topic}\"
+Plan: {plan['plan_description']}
+Source Observations: {', '.join(plan['observations'])} -->
 
-        **Joke Plan:**
-        {plan}
+Execute this plan to create a complete joke. Follow the plan's structure and format exactly.
 
-        **Joke:**
-        """
-        joke = self.call_llm(prompt, temperature=0.8) # Higher temperature for more creative generation
-        return joke
+<!-- Joke: [Your complete joke here]
+"""
+        response = self.call_llm(joke_prompt)
+        extracted_joke = self._extract_joke_from_response(response)
+        # ... stores joke ...
+    ``` -->
+
+### Step 2: Critique and Refinement
+Each generated joke then goes through a critique-and-refine loop to improve its quality.
+
+1. **Critique**: The joke is sent to the LLM with a prompt asking for specific feedback.
+2. **Refine**: The original joke, critique, and suggestions are combined into a new prompt asking for an improved version.
+
+    ```python
+    # From joke_generation.py
+    def refine_joke(self, joke: str, topic: str, plan_description: str) -> str:
+        # ... builds critique prompt ...
+        critique_response = self.call_llm(critique_prompt)
+        
+        # ... builds refinement prompt with original joke and critique ...
+        refinement_response = self.call_llm(refinement_prompt)
+        refined_joke = self._extract_refined_joke(refinement_response)
+        return refined_joke.strip()
     ```
-    Note the `temperature` parameter is often set slightly higher in this phase to encourage more creative and varied linguistic expression from the LLM, while still being constrained by the plan.
-
-3.  **Output**: The LLM's response is the final joke text. This text, along with the plan that generated it, is stored for the evaluation phase.
 
 ## Example
 
@@ -44,18 +60,18 @@ Let's follow one of our plans through this phase.
 -   **Input Plan**:
     > "A joke that treats a person's morning coffee ritual with the same seriousness and ceremony as a sacred ancient rite, connecting the 'ritual' and 'need' observations."
 
--   **Prompt to LLM**:
+-   **Initial Generation Prompt**:
     ```
-    Your task is to write a short, funny joke based on the following plan.
-    The joke should be a direct execution of the concept described in the plan.
-
-    **Joke Plan:**
-    A joke that treats a person's morning coffee ritual with the same seriousness and ceremony as a sacred ancient rite, connecting the 'ritual' and 'need' observations.
-
+    Your task is to write a short, funny joke based on the following plan...
+    **Joke Plan:** A joke that treats a person's morning coffee ritual...
     **Joke:**
     ```
 
--   **Potential LLM Output (Generated Joke)**:
-    > My friend takes his morning coffee so seriously. He calls it "The Great Awakening." Yesterday I asked him for a sip, and he looked at me in horror and said, "Do you not see the sacred bean water is still brewing? One does not disturb the ritual!"
+-   **Potential Generated Joke**:
+    > My friend's morning coffee is a whole thing. He says he's 'communing with the bean spirit'. I just think he's addicted.
 
-This generated joke is now ready to be assessed in the next phase: **Joke Evaluation**. 
+-   **Refinement Process**:
+    -   The system would critique this joke, perhaps noting the punchline is a bit weak.
+    -   It would then ask the LLM to improve it, resulting in a potentially funnier and more polished final version.
+
+This refined joke is now ready to be assessed in the next phase: **Joke Evaluation**. 

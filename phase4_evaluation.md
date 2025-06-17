@@ -12,44 +12,39 @@ This approach is flexible and can capture the nuanced, subjective nature of humo
 
 ## The Evaluation Process
 
-This process is handled primarily by the `joke_evaluation.py` module. The core method is `evaluate_jokes`.
+This process is handled by the `JokeEvaluationMixin` in `joke_evaluation.py`. The core method is `evaluate_jokes`, which now uses a pairwise comparison method to rank jokes.
 
-1.  **Input**: The method takes the list of generated jokes.
+1.  **Input**: The method takes the list of refined jokes.
 
-2.  **Bias Mitigation: Shuffling**: Before sending the jokes to the judge, their order is randomized. This is a critical step to mitigate **positional bias**, where models tend to give higher scores to items that appear earlier or later in a list. By shuffling the jokes across multiple evaluation rounds, we can average out this effect.
+2.  **Bias Mitigation: Pairwise Comparison with Randomization**: Instead of scoring all jokes at once, the system now compares them head-to-head. To mitigate positional bias, for each pair (`A`, `B`), it randomly decides whether to present them as `(A, B)` or `(B, A)`.
 
-3.  **Prompting the Judge**: A detailed prompt is sent to the LLM, instructing it to act as a comedy expert. The prompt contains the (shuffled) list of jokes and a clear scoring rubric.
+3.  **Prompting the Judge**: A detailed prompt asks the LLM to choose the funnier joke from the pair.
 
     ```python
     # Simplified from joke_evaluation.py
-    def evaluate_jokes(self, jokes: list, topic: str):
-        # (Inside a loop for multiple rounds)
-        random.shuffle(jokes) # Mitigate positional bias
+    def _compare_jokes(self, joke_a, joke_b, idx_a, idx_b, topic):
+        # ... logic to randomize order of joke_a and joke_b ...
         
-        jokes_for_prompt = "\n".join([f"{i+1}. {joke['joke']}" for i, joke in enumerate(jokes)])
+        prompt = f"""Compare these two jokes about "{topic}" and determine which is funnier:
 
-        prompt = f"""
-        You are a comedy critic. Your task is to evaluate the following jokes about "{topic}".
-        For each joke, provide a score from 1 to 10 for each of the following criteria:
-        - **Humor**: How funny is the joke? (1=not funny, 10=hilarious)
-        - **Relevance**: How relevant is the joke to the topic? (1=irrelevant, 10=perfectly relevant)
-        - **Originality**: How original and surprising is the concept? (1=cliché, 10=highly original)
+JOKE A: "{prompt_joke_a}"
 
-        Please provide your evaluation in a structured format.
+JOKE B: "{prompt_joke_b}"
 
-        Jokes to evaluate:
-        {jokes_for_prompt}
+Consider factors like:
+- Cleverness and wit
+- Surprise/unexpectedness
+- Timing and structure
+- Overall humor impact
 
-        Evaluation:
-        """
-        response = self.call_llm(prompt, temperature=0.2) # Low temperature for consistent judging
-        # ... parsing logic ...
+Respond with either "A" or "B" for the funnier joke, followed by a brief explanation."""
+
+        response = self.client.chat.completions.create(...)
+        # ... parsing logic to determine winner ...
     ```
-    Note the low `temperature` setting. This is crucial for evaluation tasks to ensure the judge is more objective, consistent, and less prone to random creativity in its assessments.
+    Note the low `temperature` setting (e.g., `0.1`), which is crucial for evaluation tasks to ensure the judge is more objective and consistent.
 
-4.  **Multiple Rounds**: To further improve reliability, the evaluation process is typically run multiple times. In each round, the jokes are re-shuffled. The final score for each joke is the average of its scores across all rounds.
-
-5.  **Parsing Scores**: The system parses the judge's structured response to extract the scores for each joke on each criterion. This data is stored for the final analysis phase.
+4.  **Elo-style Ranking**: The results of these pairwise comparisons are used to calculate an Elo-style rating for each joke. This provides a much more robust and relative ranking than absolute scoring. The system also calculates and reports on any remaining positional bias.
 
 ## Example
 

@@ -37,19 +37,20 @@ The main entry point for running the system is `run_joke_search.py`. This script
 
 ```bash
 # Run the complete joke generation and evaluation pipeline
-python run_joke_search.py --topic "artificial intelligence"
+python run_joke_search.py
 ```
 
 You can also import and run the pipeline from another Python script:
 
 ```python
-from joke_plansearch_pipeline import run_joke_generation_pipeline
+from joke_plansearch_pipeline import JokePlanSearchPipeline
 
 # Define the topic
 topic = "coffee"
 
-# Run the pipeline
-final_report = run_joke_generation_pipeline(topic)
+# Initialize and run the pipeline
+pipeline = JokePlanSearchPipeline()
+final_report = pipeline.run_pipeline(topic)
 
 # View the results
 print(final_report)
@@ -81,37 +82,15 @@ The system is designed as a multi-stage pipeline that implements the PlanSearch 
 
 ## 🔧 Core Components
 
--   `joke_plansearch_pipeline.py`: Orchestrates the entire pipeline from start to finish.
--   `joke_plan_search.py`: Contains the core `JokePlanSearch` class that implements the PlanSearch logic (observations, plans, joke generation).
--   `joke_evaluation.py`: Handles the LLM-as-a-Judge evaluation process.
--   `joke_analysis.py`: Provides tools for analyzing the results.
--   `run_joke_search.py`: A command-line script to easily run the pipeline.
+-   `run_joke_search.py`: Command-line entry point to run the full pipeline.
+-   `joke_plansearch_pipeline.py`: Main orchestrator that sequences the PlanSearch workflow.
+-   `joke_plan_search_core.py`: Contains the core data structures and base classes.
+-   `joke_generation.py`: Handles all LLM-based generation tasks, including topic analysis, observations, plans, and joke writing.
+-   `joke_evaluation.py`: Implements the LLM-as-a-Judge evaluation, including multi-round comparisons and bias correction.
+-   `joke_analysis.py`: Provides tools for analyzing and summarizing results.
+-   `groq_config.py`: Manages API client configuration and model selection for Groq.
 
-## 📊 Output Format
 
-The final output is a JSON report containing a summary, the best joke, and a ranked list of all generated jokes with their scores and the plans that created them.
-
-```json
-{
-  "best_joke": {
-    "joke": "Why did the coffee file a police report? It got mugged!",
-    "score": 9,
-    "plan": "A pun combining 'mug' as a cup and 'mugged' as being robbed."
-  },
-  "ranked_jokes": [
-    {
-      "joke": "Why did the coffee file a police report? It got mugged!",
-      "score": 9,
-      "plan": "A pun combining 'mug' as a cup and 'mugged' as being robbed."
-    }
-  ],
-  "summary": {
-    "topic": "coffee",
-    "total_jokes_generated": 10,
-    "average_score": 7.5
-  }
-}
-```
 
 ## 🎯 Use Cases
 
@@ -132,4 +111,3 @@ MIT License - see the `LICENSE` file for details.
 
 
 [PlanSearch](https://arxiv.org/pdf/2409.03733)
-- [Example Results [Need to update]](link-to-examples)

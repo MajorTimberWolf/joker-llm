@@ -25,32 +25,21 @@ Starting with observations instead of directly generating jokes has several adva
 
 ## The Generation Process
 
-This phase is handled by the `_generate_primitive_observations` method in the `JokePlanSearch` class.
+This phase is handled by the `generate_primitive_observations` method in `joke_generation.py`.
 
 1.  **Prompting the LLM**: A carefully crafted prompt is sent to the Large Language Model (LLM). The prompt explicitly asks for a list of distinct observations, not jokes.
 
     ```python
-    # From joke_plan_search.py
-    def _generate_primitive_observations(self, topic: str, num_observations: int = 10) -> List[str]:
-        """Generates a list of primitive observations about a topic."""
-        logger.info(f"Generating {num_observations} primitive observations for topic: {topic}")
+    # From joke_generation.py
+    def generate_primitive_observations(self, topic: str, context_analysis: str, num_observations: int = 8) -> list:
+        """Generate primitive observations that will be combined into plans."""
         prompt = f"""
-        Generate a list of {num_observations} distinct, primitive observations about the topic "{topic}".
-        Each observation should be a simple, factual, or conceptual statement about the topic.
-        These are building blocks for jokes, not jokes themselves.
-        Focus on different aspects: attributes, uses, effects, cultural context, etc.
+Generate {num_observations} distinct, primitive observations about \"{topic}\" that could be building blocks for jokes.
 
-        Format the output as a JSON list of strings.
-        Example for topic "cats":
-        ["Cats are independent animals.", "They often land on their feet.", "They purr when they are content.", "They were worshipped in ancient Egypt."]
-
-        Output:
-        """
-        response_text = self.call_llm(prompt)
-        # ... parsing logic ...
-    ```
-
-2.  **Parsing the Response**: The system expects the LLM to return a JSON formatted list of strings. It then parses this response to extract the list of observations. Robust parsing is included to handle cases where the LLM might not perfectly adhere to the JSON format.
+Each observation should be:
+- A single, focused insight or characteristic
+- Combinable with other observations
+- Not a complete joke concept, but a building block
 
 ## Example
 
