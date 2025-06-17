@@ -605,53 +605,6 @@ class AbductivePlanSearchIntegration:
             return {'error': f'Unsupported format: {format}'}
 
 
-class AbductivePlanSearchIntegration:
-    """Integration points with existing PlanSearch infrastructure"""
-    
-    @staticmethod
-    def integrate_with_plansearch(existing_pipeline, abductive_pipeline: AbductiveJokePipeline):
-        """
-        Allow side-by-side comparison between abductive method 
-        and existing PlanSearch approach
-        """
-        return {
-            'existing_pipeline': existing_pipeline,
-            'abductive_pipeline': abductive_pipeline,
-            'comparison_framework': 'Ready for A/B testing'
-        }
-    
-    @staticmethod
-    def export_for_evaluation(jokes: List[AbductiveJoke], format: str = "human_eval") -> Dict[str, Any]:
-        """
-        Export jokes in format suitable for human evaluation studies
-        """
-        if format == "human_eval":
-            return {
-                'jokes': [
-                    {
-                        'id': i,
-                        'topic': joke.joke_world.topic,
-                        'setup': joke.setup,
-                        'punchline': joke.punchline,
-                        'full_joke': joke.get_full_joke(),
-                        'method': 'abductive_reasoning',
-                        'grounding_premise': joke.joke_world.grounding_premise.content,
-                        'absurd_premise': joke.joke_world.absurd_premise.content
-                    }
-                    for i, joke in enumerate(jokes)
-                ],
-                'evaluation_criteria': [
-                    'humor_rating',
-                    'logical_consistency',
-                    'originality',
-                    'relatability'
-                ],
-                'instructions': 'Rate each joke on a 1-10 scale for each criterion'
-            }
-        else:
-            return {'error': f'Unsupported format: {format}'}
-
-
 def create_abductive_pipeline(llm_client) -> AbductiveJokePipeline:
     """Factory function to create a configured abductive pipeline"""
     return AbductiveJokePipeline(llm_client)
