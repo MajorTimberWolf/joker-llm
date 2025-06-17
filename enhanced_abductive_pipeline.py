@@ -393,7 +393,42 @@ Reason: [brief explanation]"""
         return score, explanation
 
 
+class StatisticalAnalyzer:
+    """Simple statistical analysis tools"""
+    
+    @staticmethod
+    def compare_groups(group1: List[float], group2: List[float]) -> Dict[str, Any]:
+        """Compare two groups statistically"""
+        import scipy.stats as stats
+        
+        g1, g2 = np.array(group1), np.array(group2)
+        
+        # T-test
+        t_stat, p_value = stats.ttest_ind(g1, g2, equal_var=False)
+        
+        # Effect size (Cohen's d)
+        pooled_std = np.sqrt(((len(g1)-1)*np.var(g1, ddof=1) + (len(g2)-1)*np.var(g2, ddof=1)) / (len(g1)+len(g2)-2))
+        cohens_d = (np.mean(g1) - np.mean(g2)) / pooled_std if pooled_std > 0 else 0
+        
+        return {
+            't_statistic': t_stat,
+            'p_value': p_value,
+            'effect_size': cohens_d,
+            'significant': p_value < 0.05,
+            'group1_mean': np.mean(g1),
+            'group2_mean': np.mean(g2),
+            'interpretation': 'significant' if p_value < 0.05 else 'not significant'
+        }
 
+
+def create_enhanced_pipeline(llm_client) -> EnhancedAbductiveJokePipeline:
+    """Factory function for enhanced pipeline"""
+    return EnhancedAbductiveJokePipeline(llm_client, enable_caching=True)
+
+
+def create_multi_judge_analyzer(llm_client, num_judges: int = 3) -> MultiJudgeAnalyzer:
+    """Factory function for multi-judge analyzer"""
+    return MultiJudgeAnalyzer(llm_client, num_judges)
 
 
 if __name__ == "__main__":
