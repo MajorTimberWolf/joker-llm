@@ -109,7 +109,7 @@ The system is designed as a multi-stage pipeline that implements the PlanSearch 
 
 MIT License - see the [LICENSE](https://github.com/MajorTimberWolf/joker-llm/blob/main/LICENSE) file for details.
 
-## 🔗 Resources [WIP]
+## 🔗 Resources 
 
 
 - [1. PlanSearch Paper](https://arxiv.org/pdf/2409.03733)
